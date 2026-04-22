@@ -2,11 +2,13 @@
 using GestorDocumentoApp.Extensions;
 using GestorDocumentoApp.Models;
 using GestorDocumentoApp.ViewModels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace GestorDocumentoApp.Controllers
 {
+    [Authorize(Roles = "Admin")]
     public class RequirementTypeController : Controller
     {
         private readonly ScmDocumentContext _scmDocumentContext;

@@ -28,6 +28,34 @@
     </a>
 </div>
 
+<div class="mb-4 rounded-lg bg-white p-4 shadow">
+    <h2 class="text-md font-semibold text-gray-900">Comparar versiones / Changelog automatico</h2>
+    <form asp-action="Compare" method="get" class="mt-3 flex flex-wrap items-end gap-3">
+        <input type="hidden" name="elementId" value="@Model.Id" />
+        <div>
+            <label class="mb-2 block text-sm font-medium text-gray-900">Version origen</label>
+            <select name="sourceVersionId" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900">
+                @foreach (var v in Model.Versions)
+                {
+                    <option value="@v.Id">@v.VersionCode (@v.Id)</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label class="mb-2 block text-sm font-medium text-gray-900">Version destino</label>
+            <select name="targetVersionId" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900">
+                @foreach (var v in Model.Versions)
+                {
+                    <option value="@v.Id">@v.VersionCode (@v.Id)</option>
+                }
+            </select>
+        </div>
+        <button type="submit" class="rounded-lg bg-indigo-700 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-800">
+            Comparar
+        </button>
+    </form>
+</div>
+
 <table class="min-w-full">
 
     <thead class="border-b border-gray-100 bg-gray-200">

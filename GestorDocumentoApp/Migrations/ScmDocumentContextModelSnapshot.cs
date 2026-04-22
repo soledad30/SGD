@@ -33,6 +33,21 @@ namespace GestorDocumentoApp.Migrations
                     b.Property<int?>("Action")
                         .HasColumnType("integer");
 
+                    b.Property<string>("ApprovalAssigneeUserId")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ApprovalDecidedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ApprovalDueAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ApprovalRequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("ApprovalStatus")
+                        .HasColumnType("integer");
+
                     b.Property<int>("ClasificationType")
                         .HasColumnType("integer");
 
@@ -63,6 +78,39 @@ namespace GestorDocumentoApp.Migrations
                     b.HasIndex("ElementId");
 
                     b.ToTable("ChangeRequests");
+                });
+
+            modelBuilder.Entity("GestorDocumentoApp.Models.ChangeRequestAudit", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ChangeRequestId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ChangedByUserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangeRequestId");
+
+                    b.ToTable("ChangeRequestAudits");
                 });
 
             modelBuilder.Entity("GestorDocumentoApp.Models.Element", b =>
@@ -122,6 +170,85 @@ namespace GestorDocumentoApp.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("ElementTypes");
+                });
+
+            modelBuilder.Entity("GestorDocumentoApp.Models.GitTraceLink", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ChangeRequestId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("CommitSha")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("LinkedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LinkedByUserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int?>("PullRequestNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PullRequestUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Repository")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int?>("VersionId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangeRequestId");
+
+                    b.HasIndex("VersionId");
+
+                    b.ToTable("GitTraceLinks");
+                });
+
+            modelBuilder.Entity("GestorDocumentoApp.Models.Notification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Link")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Notifications");
                 });
 
             modelBuilder.Entity("GestorDocumentoApp.Models.Project", b =>
@@ -450,6 +577,17 @@ namespace GestorDocumentoApp.Migrations
                     b.Navigation("Element");
                 });
 
+            modelBuilder.Entity("GestorDocumentoApp.Models.ChangeRequestAudit", b =>
+                {
+                    b.HasOne("GestorDocumentoApp.Models.ChangeRequest", "ChangeRequest")
+                        .WithMany("Audits")
+                        .HasForeignKey("ChangeRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ChangeRequest");
+                });
+
             modelBuilder.Entity("GestorDocumentoApp.Models.Element", b =>
                 {
                     b.HasOne("GestorDocumentoApp.Models.ElementType", "ElementType")
@@ -465,6 +603,34 @@ namespace GestorDocumentoApp.Migrations
                     b.Navigation("ElementType");
 
                     b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("GestorDocumentoApp.Models.GitTraceLink", b =>
+                {
+                    b.HasOne("GestorDocumentoApp.Models.ChangeRequest", "ChangeRequest")
+                        .WithMany("GitTraceLinks")
+                        .HasForeignKey("ChangeRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GestorDocumentoApp.Models.Version", "Version")
+                        .WithMany()
+                        .HasForeignKey("VersionId");
+
+                    b.Navigation("ChangeRequest");
+
+                    b.Navigation("Version");
+                });
+
+            modelBuilder.Entity("GestorDocumentoApp.Models.Notification", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("GestorDocumentoApp.Models.Project", b =>
@@ -568,6 +734,13 @@ namespace GestorDocumentoApp.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("GestorDocumentoApp.Models.ChangeRequest", b =>
+                {
+                    b.Navigation("Audits");
+
+                    b.Navigation("GitTraceLinks");
                 });
 
             modelBuilder.Entity("GestorDocumentoApp.Models.Element", b =>

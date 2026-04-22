@@ -5,6 +5,7 @@ using GestorDocumentoApp.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace GestorDocumentoApp.Controllers
@@ -22,11 +23,13 @@ namespace GestorDocumentoApp.Controllers
 
         public async Task<IActionResult> Index(int? projectId, int pageNumber = 1, int pageSize = 10)
         {
+            var userId = GetCurrentUserId();
             Project? project = null;
 
             if (projectId.HasValue)
             {
-                project=await _scmDocumentContext.Projects.FindAsync(projectId);
+                project = await _scmDocumentContext.Projects.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == projectId && x.UserId == userId);
 
                 if (project is null)
                 {
@@ -34,9 +37,12 @@ namespace GestorDocumentoApp.Controllers
                 }
             }
 
-            var projects=await _scmDocumentContext.Projects.AsNoTracking().ToListAsync();
+            var projects = await _scmDocumentContext.Projects.AsNoTracking()
+                .Where(x => x.UserId == userId)
+                .ToListAsync();
 
-            IQueryable<Element> query = _scmDocumentContext.Elements;
+            IQueryable<Element> query = _scmDocumentContext.Elements
+                .Where(x => x.Project.UserId == userId);
 
             if (projectId.HasValue)
             {
@@ -65,9 +71,12 @@ namespace GestorDocumentoApp.Controllers
 
         public async Task<IActionResult> Create()
         {
+            var userId = GetCurrentUserId();
 
             var elementTypes = await _scmDocumentContext.ElementTypes.AsNoTracking().OrderBy(elementType => elementType.Name).ToListAsync();
-            var projects = await _scmDocumentContext.Projects.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+            var projects = await _scmDocumentContext.Projects.AsNoTracking()
+                .Where(x => x.UserId == userId)
+                .OrderBy(x => x.Name).ToListAsync();
 
 
             return View(
@@ -84,17 +93,39 @@ namespace GestorDocumentoApp.Controllers
         {
             try
             {
+                var userId = GetCurrentUserId();
                 if (!ModelState.IsValid)
                 {
 
                     var elementTypes = await _scmDocumentContext.ElementTypes.AsNoTracking().OrderBy(elementType => elementType.Name).ToListAsync();
-                    var projects = await _scmDocumentContext.Projects.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                    var projects = await _scmDocumentContext.Projects.AsNoTracking()
+                        .Where(x => x.UserId == userId)
+                        .OrderBy(x => x.Name).ToListAsync();
 
                     elementVM.ElementTypes = elementTypes.Select(elementType => new SelectListItem { Text = elementType.Name, Value = elementType.Id.ToString() });
                     elementVM.Projects = projects.Select(x => new SelectListItem { Text = x.Name, Value = x.Id.ToString() });
 
                     return View(elementVM);
                 }
+                if (!elementVM.ProjectId.HasValue)
+                {
+                    ModelState.AddModelError(nameof(elementVM.ProjectId), "Proyecto es requerido.");
+                    var elementTypes = await _scmDocumentContext.ElementTypes.AsNoTracking().OrderBy(elementType => elementType.Name).ToListAsync();
+                    var projects = await _scmDocumentContext.Projects.AsNoTracking()
+                        .Where(x => x.UserId == userId)
+                        .OrderBy(x => x.Name).ToListAsync();
+                    elementVM.ElementTypes = elementTypes.Select(elementType => new SelectListItem { Text = elementType.Name, Value = elementType.Id.ToString() });
+                    elementVM.Projects = projects.Select(x => new SelectListItem { Text = x.Name, Value = x.Id.ToString() });
+                    return View(elementVM);
+                }
+
+                var selectedProject = await _scmDocumentContext.Projects.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == elementVM.ProjectId && x.UserId == userId);
+                if (selectedProject is null)
+                {
+                    return Forbid();
+                }
+
                 var element = new Element
                 {
                     Name = elementVM.Name,
@@ -102,7 +133,7 @@ namespace GestorDocumentoApp.Controllers
                     CreatedDate = DateTime.SpecifyKind(elementVM.CreatedDate, DateTimeKind.Utc),
 
                     ElementTypeId = elementVM.ElementTypeId,
-                    ProjectId = elementVM.ProjectId.Value,
+                    ProjectId = elementVM.ProjectId ?? 0,
                 };
 
                 _scmDocumentContext.Add(element);
@@ -123,7 +154,9 @@ namespace GestorDocumentoApp.Controllers
 
         public async Task<IActionResult> Edit([FromRoute] int id)
         {
-            var element = await _scmDocumentContext.Elements.FindAsync(id);
+            var userId = GetCurrentUserId();
+            var element = await _scmDocumentContext.Elements
+                .FirstOrDefaultAsync(x => x.Id == id && x.Project.UserId == userId);
 
             if (element is null)
             {
@@ -132,7 +165,9 @@ namespace GestorDocumentoApp.Controllers
 
             var elementTypes = await _scmDocumentContext.ElementTypes.AsNoTracking().OrderBy(element => element.Name).ToListAsync();
 
-            var projects = await _scmDocumentContext.Projects.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+            var projects = await _scmDocumentContext.Projects.AsNoTracking()
+                .Where(x => x.UserId == userId)
+                .OrderBy(x => x.Name).ToListAsync();
 
             return View(
                 new ElementVM
@@ -157,8 +192,10 @@ namespace GestorDocumentoApp.Controllers
         {
             try
             {
+                var userId = GetCurrentUserId();
 
-                var element = await _scmDocumentContext.Elements.FindAsync(id);
+                var element = await _scmDocumentContext.Elements
+                    .FirstOrDefaultAsync(x => x.Id == id && x.Project.UserId == userId);
 
                 if (element is null)
                 {
@@ -168,17 +205,32 @@ namespace GestorDocumentoApp.Controllers
                 if (!ModelState.IsValid)
                 {
                     var elementTypes = await _scmDocumentContext.ElementTypes.OrderBy(elementType => elementType.Name).ToListAsync();
-                    var projects = await _scmDocumentContext.Projects.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                    var projects = await _scmDocumentContext.Projects.AsNoTracking()
+                        .Where(x => x.UserId == userId)
+                        .OrderBy(x => x.Name).ToListAsync();
 
                     elementVM.ElementTypes = elementTypes.Select(elementType => new SelectListItem { Text = elementType.Name, Value = elementType.Id.ToString() });
                     elementVM.Projects = projects.Select(x => new SelectListItem { Text = x.Name, Value = x.Id.ToString() });
 
                     return View(elementVM);
                 }
-
-                if (element is null)
+                if (!elementVM.ProjectId.HasValue)
                 {
-                    return NotFound();
+                    ModelState.AddModelError(nameof(elementVM.ProjectId), "Proyecto es requerido.");
+                    var elementTypes = await _scmDocumentContext.ElementTypes.OrderBy(elementType => elementType.Name).ToListAsync();
+                    var projects = await _scmDocumentContext.Projects.AsNoTracking()
+                        .Where(x => x.UserId == userId)
+                        .OrderBy(x => x.Name).ToListAsync();
+                    elementVM.ElementTypes = elementTypes.Select(elementType => new SelectListItem { Text = elementType.Name, Value = elementType.Id.ToString() });
+                    elementVM.Projects = projects.Select(x => new SelectListItem { Text = x.Name, Value = x.Id.ToString() });
+                    return View(elementVM);
+                }
+
+                var selectedProject = await _scmDocumentContext.Projects.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == elementVM.ProjectId && x.UserId == userId);
+                if (selectedProject is null)
+                {
+                    return Forbid();
                 }
 
                 element.Name = elementVM.Name;
@@ -186,7 +238,7 @@ namespace GestorDocumentoApp.Controllers
                 element.CreatedDate = DateTime.SpecifyKind(elementVM.CreatedDate, DateTimeKind.Utc);
                 element.ElementTypeId = elementVM.ElementTypeId;
 
-                element.ProjectId = elementVM.ProjectId.Value;
+                element.ProjectId = elementVM.ProjectId ?? 0;
 
                 await _scmDocumentContext.SaveChangesAsync();
 
@@ -206,7 +258,9 @@ namespace GestorDocumentoApp.Controllers
         {
             try
             {
-                var element = await _scmDocumentContext.Elements.FindAsync(id);
+                var userId = GetCurrentUserId();
+                var element = await _scmDocumentContext.Elements
+                    .FirstOrDefaultAsync(x => x.Id == id && x.Project.UserId == userId);
 
                 if (element is null)
                 {
@@ -222,6 +276,11 @@ namespace GestorDocumentoApp.Controllers
                 _logger.LogError(ex, "Error delete Element {ElementId}", id);
                 return RedirectToAction(nameof(Index));
             }
+        }
+
+        private string GetCurrentUserId()
+        {
+            return User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
         }
     }
 }

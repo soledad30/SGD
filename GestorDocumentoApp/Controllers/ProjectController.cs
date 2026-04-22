@@ -23,7 +23,7 @@ namespace GestorDocumentoApp.Controllers
 
         public async Task<IActionResult> Index()
         {
-            var useId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var useId = GetCurrentUserId();
             var projects = await _scmDocumentContext.Projects.Where(x => x.UserId == useId).OrderBy(project => project.Name).ToListAsync();
             return View(projects);
 
@@ -48,7 +48,7 @@ namespace GestorDocumentoApp.Controllers
                     Name = projectVM.Name,
                     Description = projectVM.Description,
                     CreationDate = DateTime.SpecifyKind(projectVM.CreationDate, DateTimeKind.Utc),
-                    UserId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    UserId = GetCurrentUserId()
                 };
                 _scmDocumentContext.Add(project);
                 await _scmDocumentContext.SaveChangesAsync();
@@ -68,7 +68,8 @@ namespace GestorDocumentoApp.Controllers
 
         public async Task<IActionResult> Edit([FromRoute] int id)
         {
-            var project = await _scmDocumentContext.Projects.FindAsync(id);
+            var userId = GetCurrentUserId();
+            var project = await _scmDocumentContext.Projects.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
 
             if (project is null)
             {
@@ -95,7 +96,8 @@ namespace GestorDocumentoApp.Controllers
                     return View(projectVM);
                 }
 
-                var project = await _scmDocumentContext.Projects.FindAsync(id);
+                var userId = GetCurrentUserId();
+                var project = await _scmDocumentContext.Projects.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
 
                 if (project is null)
                 {
@@ -124,7 +126,8 @@ namespace GestorDocumentoApp.Controllers
         {
             try
             {
-                var project = await _scmDocumentContext.Projects.FindAsync(id);
+                var userId = GetCurrentUserId();
+                var project = await _scmDocumentContext.Projects.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
 
                 if (project is null)
                 {
@@ -144,7 +147,8 @@ namespace GestorDocumentoApp.Controllers
 
         public async Task<IActionResult> Show(int id)
         {
-            var project = await _scmDocumentContext.Projects.AsNoTracking().Include(x => x.Elements.OrderByDescending(x=>x.CreatedDate)).ThenInclude(x=>x.Versions).Where(x => x.Id == id)
+            var userId = GetCurrentUserId();
+            var project = await _scmDocumentContext.Projects.AsNoTracking().Include(x => x.Elements.OrderByDescending(x=>x.CreatedDate)).ThenInclude(x=>x.Versions).Where(x => x.Id == id && x.UserId == userId)
                 .FirstOrDefaultAsync(x=>x.Id==id);
             if (project is null)
             {
@@ -155,7 +159,8 @@ namespace GestorDocumentoApp.Controllers
 
         public async Task<IActionResult> AsignElement(int id)
         {
-            var project = await _scmDocumentContext.Projects.AsNoTracking().Include(x => x.Elements).FirstOrDefaultAsync(x => x.Id == id);
+            var userId = GetCurrentUserId();
+            var project = await _scmDocumentContext.Projects.AsNoTracking().Include(x => x.Elements).FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
             if (project is null)
             {
                 return NotFound();
@@ -174,7 +179,8 @@ namespace GestorDocumentoApp.Controllers
         [HttpPost]
         public async Task<IActionResult> AsignElement(int id, ProjectElementVM projectElementVM)
         {
-            var project = await _scmDocumentContext.Projects.AsNoTracking().Include(x => x.Elements).FirstOrDefaultAsync(x => x.Id == id);
+            var userId = GetCurrentUserId();
+            var project = await _scmDocumentContext.Projects.AsNoTracking().Include(x => x.Elements).FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
             if (project is null)
             {
                 return NotFound();
@@ -208,6 +214,11 @@ namespace GestorDocumentoApp.Controllers
             await _scmDocumentContext.SaveChangesAsync();
 
             return RedirectToAction(nameof(Show), new { id = project.Id });
+        }
+
+        private string GetCurrentUserId()
+        {
+            return User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
         }
     }
 }

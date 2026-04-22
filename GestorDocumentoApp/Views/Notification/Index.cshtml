@@ -1,0 +1,52 @@
+@model IEnumerable<NotificationVM>
+
+@{
+    ViewData["Title"] = "Notificaciones";
+}
+
+@await Html.PartialAsync("_HeaderTitle", new HeaderTitle { Title = "Notificaciones", Subtitle = "Eventos internos del sistema" })
+
+<div class="mt-4">
+    <form asp-action="MarkAllAsRead" method="post">
+        <button type="submit" class="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800">
+            Marcar todo como leido
+        </button>
+    </form>
+</div>
+
+<div class="mt-5 space-y-3">
+    @if (!Model.Any())
+    {
+        <div class="rounded-lg bg-white p-4 text-sm text-gray-500 shadow">No hay notificaciones.</div>
+    }
+    else
+    {
+        @foreach (var item in Model)
+        {
+            <div class="rounded-lg bg-white p-4 shadow @(item.IsRead ? "opacity-80" : "ring-2 ring-blue-200")">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-900">@item.Title</h3>
+                        <p class="mt-1 text-sm text-gray-700">@item.Message</p>
+                        <p class="mt-2 text-xs text-gray-500">@item.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</p>
+                        @if (!string.IsNullOrWhiteSpace(item.Link))
+                        {
+                            <a href="@item.Link" class="mt-2 inline-block text-sm text-blue-700 hover:text-blue-900">Ir al registro</a>
+                        }
+                    </div>
+                    <div class="flex gap-2">
+                        @if (!item.IsRead)
+                        {
+                            <form asp-action="MarkAsRead" method="post">
+                                <input type="hidden" name="id" value="@item.Id" />
+                                <button type="submit" class="rounded bg-gray-700 px-3 py-1 text-xs text-white hover:bg-gray-800">
+                                    Marcar leida
+                                </button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>

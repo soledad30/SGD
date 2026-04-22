@@ -9,12 +9,77 @@
 
 
 <div class="my-2 flex items-end justify-between">
-    <form asp-action="Index" method="get" class="flex items-end gap-2">
+    <form asp-action="Index" method="get" class="flex flex-wrap items-end gap-2">
         <div>
-            <label for="countries" class="mb-2 block text-sm font-medium text-gray-900">Seleccione una opcion</label>
+            <label class="mb-2 block text-sm font-medium text-gray-900">Buscar</label>
+            <input asp-for="Search" type="text" placeholder="Codigo o descripcion"
+                   class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-600 focus:ring-blue-600" />
+        </div>
+
+        <div>
+            <label class="mb-2 block text-sm font-medium text-gray-900">Proyecto</label>
+            <select asp-for="ProjectId" asp-items="Model.Projects" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-600 focus:ring-blue-600">
+                <option value="">-- Todos los proyectos --</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="countries" class="mb-2 block text-sm font-medium text-gray-900">Elemento</label>
 
             <select asp-for="@Model.ElementId" asp-items="Model.Elements" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-600 focus:ring-blue-600">
                 <option value="">-- Seleccione el tipo de elemento</option>
+            </select>
+        </div>
+
+        <div>
+            <label class="mb-2 block text-sm font-medium text-gray-900">Prioridad</label>
+            <select asp-for="PriorityFilter" asp-items="Model.PriorityOptions" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-600 focus:ring-blue-600">
+                <option value="">-- Todas --</option>
+            </select>
+        </div>
+
+        <div>
+            <label class="mb-2 block text-sm font-medium text-gray-900">Proceso</label>
+            <select asp-for="StatusFilter" asp-items="Model.StatusOptions" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-600 focus:ring-blue-600">
+                <option value="">-- Todos --</option>
+            </select>
+        </div>
+
+        <div>
+            <label class="mb-2 block text-sm font-medium text-gray-900">Estado</label>
+            <select asp-for="ActionFilter" asp-items="Model.ActionOptions" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-600 focus:ring-blue-600">
+                <option value="">-- Todos --</option>
+            </select>
+        </div>
+
+        <div>
+            <label class="mb-2 block text-sm font-medium text-gray-900">Fase</label>
+            <select asp-for="PhaseFilter" asp-items="Model.PhaseOptions" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-600 focus:ring-blue-600">
+                <option value="">-- Todas --</option>
+            </select>
+        </div>
+
+        <div>
+            <label class="mb-2 block text-sm font-medium text-gray-900">Iteracion</label>
+            <input asp-for="IterationFilter" type="number" min="1" placeholder="Ej: 2"
+                   class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-600 focus:ring-blue-600" />
+        </div>
+
+        <div>
+            <label class="mb-2 block text-sm font-medium text-gray-900">Ordenar por</label>
+            <select asp-for="SortBy" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-600 focus:ring-blue-600">
+                <option value="createdAt">Fecha de creacion</option>
+                <option value="code">Codigo</option>
+                <option value="status">Proceso</option>
+                <option value="action">Estado</option>
+            </select>
+        </div>
+
+        <div>
+            <label class="mb-2 block text-sm font-medium text-gray-900">Direccion</label>
+            <select asp-for="SortDir" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-600 focus:ring-blue-600">
+                <option value="desc">Descendente</option>
+                <option value="asc">Ascendente</option>
             </select>
         </div>
 
@@ -22,6 +87,25 @@
         class="max-h-fit max-w-fit rounded-lg bg-blue-700 px-5 py-2 text-center text-sm font-medium text-white focus:ring-4 focus:ring-blue-300 focus:outline-none sm:w-auto">
             Filtrar
         </button>
+
+        <a asp-action="Index" class="max-h-fit max-w-fit rounded-lg bg-gray-500 px-5 py-2 text-center text-sm font-medium text-white focus:ring-4 focus:ring-gray-300 focus:outline-none sm:w-auto">
+            Limpiar
+        </a>
+
+        <a asp-action="ExportCsv"
+           asp-route-elementId="@Model.ElementId"
+           asp-route-projectId="@Model.ProjectId"
+           asp-route-search="@Model.Search"
+           asp-route-priorityFilter="@Model.PriorityFilter"
+           asp-route-statusFilter="@Model.StatusFilter"
+           asp-route-actionFilter="@Model.ActionFilter"
+           asp-route-phaseFilter="@Model.PhaseFilter"
+           asp-route-iterationFilter="@Model.IterationFilter"
+           asp-route-sortBy="@Model.SortBy"
+           asp-route-sortDir="@Model.SortDir"
+           class="max-h-fit max-w-fit rounded-lg bg-emerald-600 px-5 py-2 text-center text-sm font-medium text-white focus:ring-4 focus:ring-emerald-300 focus:outline-none sm:w-auto">
+            Exportar CSV
+        </a>
 
     </form>
 
@@ -125,6 +209,14 @@
                 </td>
 
                 <td class="flex items-center gap-3 px-6 py-4">
+                    <a asp-action="Details" asp-route-id="@item.Id"
+                       class="text-gray-600 hover:text-gray-800" title="Ver historial">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                             stroke-width="1.5" stroke="currentColor" class="inline h-5 w-5">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M11.25 6.75h1.5v5.25l3.75 2.25m6-2.25a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </a>
 
                     <a asp-action="Edit" asp-route-id="@item.Id"
                        class="text-blue-600 hover:text-blue-800 dark:text-blue-500 dark:hover:text-blue-400">
@@ -156,11 +248,55 @@
     </tbody>
 </table>
 
-@await Html.PartialAsync("_Pagination", new
-    {
-        TotalCount = Model.TotalCount,
-        HasPrevious = Model.HasPrevious,
-        PageNumber = Model.PageNumber,
-        HasNext = Model.HasNext,
-        PageSize = Model.PageSize
-    })
+@if (Model.TotalCount > 0)
+{
+    <div class="mt-5 flex justify-end">
+        <nav aria-label="Pagination" class="isolate inline-flex -space-x-px rounded-md shadow-xs">
+            @if (Model.HasPrevious)
+            {
+                <a asp-route-pageNumber="@(Model.PageNumber - 1)"
+                   asp-route-pageSize="@Model.PageSize"
+                   asp-route-elementId="@Model.ElementId"
+                   asp-route-projectId="@Model.ProjectId"
+                   asp-route-search="@Model.Search"
+                   asp-route-priorityFilter="@Model.PriorityFilter"
+                   asp-route-statusFilter="@Model.StatusFilter"
+                   asp-route-actionFilter="@Model.ActionFilter"
+                   asp-route-phaseFilter="@Model.PhaseFilter"
+                   asp-route-iterationFilter="@Model.IterationFilter"
+                   asp-route-sortBy="@Model.SortBy"
+                   asp-route-sortDir="@Model.SortDir"
+                   class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 inset-ring inset-ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
+                    <span class="sr-only">Previous</span>
+                    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" class="size-5">
+                        <path d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd" fill-rule="evenodd" />
+                    </svg>
+                </a>
+            }
+
+            <a href="#" aria-current="page" class="relative z-10 inline-flex items-center bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">@Model.PageNumber</a>
+
+            @if (Model.HasNext)
+            {
+                <a asp-route-pageNumber="@(Model.PageNumber + 1)"
+                   asp-route-pageSize="@Model.PageSize"
+                   asp-route-elementId="@Model.ElementId"
+                   asp-route-projectId="@Model.ProjectId"
+                   asp-route-search="@Model.Search"
+                   asp-route-priorityFilter="@Model.PriorityFilter"
+                   asp-route-statusFilter="@Model.StatusFilter"
+                   asp-route-actionFilter="@Model.ActionFilter"
+                   asp-route-phaseFilter="@Model.PhaseFilter"
+                   asp-route-iterationFilter="@Model.IterationFilter"
+                   asp-route-sortBy="@Model.SortBy"
+                   asp-route-sortDir="@Model.SortDir"
+                   class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 inset-ring inset-ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
+                    <span class="sr-only">Next</span>
+                    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" class="size-5">
+                        <path d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" fill-rule="evenodd" />
+                    </svg>
+                </a>
+            }
+        </nav>
+    </div>
+}

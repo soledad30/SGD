@@ -23,37 +23,41 @@
         
     </div>
 
-    <div x-data="{ open: false }" class="relative">
-        <button type="button"
-                x-on:click="open = !open"
-                class="text-sm/6 flex items-center gap-x-1 font-semibold text-gray-900 focus:outline-none">
-            <!-- icono -->
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                 stroke-width="1.5" stroke="currentColor" class="h-7 w-7">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                      d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-            </svg>
-        </button>
+    <div class="flex items-center gap-3">
+        @await Component.InvokeAsync("NotificationBell")
 
-        <div x-show="open"
-             x-on:click.outside="open = false"
-             x-transition
-             class="absolute top-6 -left-44 z-10 w-44 divide-y divide-gray-100 rounded-lg bg-white shadow">
-            <div class="p-4">
-                <div class="px-4 py-3 text-sm text-gray-900">
-                    <div>@(User?.Identity?.Name ?? "Invitado")</div>
-                    <div class="font-medium">Nombre de usuario</div>
-                </div>
+        <div x-data="{ open: false }" class="relative">
+            <button type="button"
+                    x-on:click="open = !open"
+                    class="text-sm/6 flex items-center gap-x-1 font-semibold text-gray-900 focus:outline-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                     stroke-width="1.5" stroke="currentColor" class="h-7 w-7">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                </svg>
+            </button>
 
-                <ul class="text-sm text-gray-700" aria-labelledby="menuButton">
-                    <li><a asp-controller="Dashboard" asp-action="Index" class="block px-4 py-2 hover:bg-gray-100">Dashboard</a></li>
-                    <li><a asp-controller="Settings" asp-action="Index" class="block px-4 py-2 hover:bg-gray-100">Configuración</a></li>
-                </ul>
+            <div x-show="open"
+                 x-on:click.outside="open = false"
+                 x-transition
+                 class="absolute top-6 -left-44 z-10 w-44 divide-y divide-gray-100 rounded-lg bg-white shadow">
+                <div class="p-4">
+                    <div class="px-4 py-3 text-sm text-gray-900">
+                        <div>@(User?.Identity?.Name ?? "Invitado")</div>
+                        <div class="font-medium">Nombre de usuario</div>
+                    </div>
 
-                <div>
-                    <form asp-controller="Account" asp-action="Logout" method="post">
-                        <button type="submit" class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100">Salir</button>
-                    </form>
+                    <ul class="text-sm text-gray-700" aria-labelledby="menuButton">
+                        <li><a asp-controller="Dashboard" asp-action="Index" class="block px-4 py-2 hover:bg-gray-100">Dashboard</a></li>
+                        <li><a asp-controller="Notification" asp-action="Index" class="block px-4 py-2 hover:bg-gray-100">Notificaciones</a></li>
+                        <li><a asp-controller="Register" asp-action="Index" class="block px-4 py-2 hover:bg-gray-100">Configuración</a></li>
+                    </ul>
+
+                    <div>
+                        <form asp-controller="Account" asp-action="Logout" method="post">
+                            <button type="submit" class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100">Salir</button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
