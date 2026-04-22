@@ -1,1 +1,71 @@
 sistema de gestion documental 
+
+
+1. ¿Qué hace el proyecto?
+GestorDocumentoApp es un Sistema de Gestión de Documentos SCM (Software Configuration Management) diseñado para el manejo de artefactos de software en el ciclo de vida del desarrollo. Sus funcionalidades principales incluyen:
+
+Características Clave:
+Gestión de Proyectos: Crear, editar, eliminar y visualizar proyectos de software. Cada proyecto contiene Elementos (artefactos como requisitos, componentes, etc.).
+Elementos y Tipos: CRUD para Elementos (con tipos personalizables como funcional/no-funcional) asociados a proyectos, con enlaces externos y códigos.
+Versiones: Gestión de versiones de elementos con:
+Ciclo de vida de software (fases e iteraciones).
+Enlaces a repositorios GitHub.
+Tipos de requisitos.
+Jerarquía padre-hijo.
+Solicitudes de Cambio (Change Requests): Crear, editar CRs vinculados a elementos/versiones, con prioridad, estado, código fuente y acciones.
+Autenticación y Autorización: Registro/login de usuarios con ASP.NET Identity. Proyectos filtrados por usuario propietario.
+Dashboard: Vista general de proyectos y actividades.
+Integración GitHub: API para interactuar con repos (controlador y servicio dedicados).
+Vistas CRUD Completas: Para todos los modelos con paginación, validación y manejo de errores.
+Flujo Típico: Usuario crea proyecto → asigna elementos → sube versiones → genera change requests → integra con GitHub.
+
+2. Tecnologías y Lenguajes de Desarrollo
+Lenguaje Principal:
+C# (versión implícita con .NET 9.0)
+Framework Backend:
+ASP.NET Core 9.0 (MVC Web Application)
+Controladores (Home, Project, Element, Version, ChangeRequest, Account, etc.).
+Servicios inyectados (GithubService).
+Base de Datos:
+PostgreSQL (Npgsql.EntityFrameworkCore.PostgreSQL 9.0.4)
+Entity Framework Core 9.0.9 (Code-First migrations, DbContext: ScmDocumentContext).
+Esquema: Tablas Identity + custom (Projects, Elements, ElementTypes, Versions, ChangeRequests, RequirementTypes).
+Autenticación:
+ASP.NET Core Identity 9.0.9 con Entity Framework stores.
+Cookie Authentication.
+Frontend:
+Razor Views (.cshtml).
+Tailwind CSS (tailwind.config.js, output.css).
+Bootstrap (lib en wwwroot).
+JavaScript: jQuery, jQuery Validation/Unobtrusive.
+Archivos estáticos en wwwroot (CSS/JS).
+Dependencias Principales (.csproj):
+
+- Microsoft.AspNetCore.Identity.EntityFrameworkCore (9.0.9)
+- Microsoft.EntityFrameworkCore.Tools (9.0.9)
+- Npgsql.EntityFrameworkCore.PostgreSQL (9.0.4)
+- Octokit (14.0.0) - Cliente GitHub API
+Herramientas y Configuración:
+.NET SDK (TargetFramework: net9.0).
+EF Core Tools para migrations.
+Tailwind CSS configurado para VSCode extension.
+CORS habilitado para localhost:3000.
+DbSeeder: Siembra inicial de usuarios/roles.
+Azure Deployment (ServiceDependencies para Zip Deploy).
+Git (.gitattributes, .gitignore).
+Estructura de Archivos:
+
+GestorDocumentoApp/
+├── Controllers/ (MVC controllers)
+├── Models/ (Entities: Project, Element, Version, ChangeRequest)
+├── Data/ (DbContext, Seeder)
+├── Views/ (Razor: CRUD por entidad + Shared layouts)
+├── wwwroot/ (Assets: Tailwind CSS, Bootstrap, JS)
+├── Migrations/ (EF history)
+├── Properties/launchSettings.json
+├── appsettings.json (Config básica)
+└── db_schema.sql (Esquema PostgreSQL generado)
+3. Estado del Proyecto
+En Desarrollo: Múltiples migrations evolutivas (sep-oct 2025), añadiendo features progresivamente.
+Preparado para Producción: HSTS, HTTPS, logging configurado.
+Ejecución: dotnet run desde GestorDocumentoApp/. Conexión DB via appsettings ("DefaultConnection").
