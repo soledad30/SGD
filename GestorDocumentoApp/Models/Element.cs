@@ -5,7 +5,7 @@ namespace GestorDocumentoApp.Models
     public class Element
     {
         public int Id { get; set; }
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
 
         public DateTime CreatedDate { get; set; }
@@ -17,12 +17,12 @@ namespace GestorDocumentoApp.Models
         [Required]
         public int ProjectId { get; set; }
 
-        public Project Project { get; set; }
+        public Project Project { get; set; } = null!;
 
         public string? ExternalUrlElement { get; set; }
         public string? ExternaCodeElement { get; set; }
 
-        public IEnumerable<Version> Versions { get; set; }
+        public List<Version> Versions { get; set; } = new List<Version>();
 
         
     }

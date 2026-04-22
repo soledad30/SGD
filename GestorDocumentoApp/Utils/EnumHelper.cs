@@ -24,7 +24,7 @@ namespace GestorDocumentoApp.Utils
             {
                 var displayAttribute = memberInfo.GetCustomAttribute<DisplayAttribute>();
                 if (displayAttribute != null)
-                    return displayAttribute.GetName();
+                    return displayAttribute.GetName() ?? value.ToString();
             }
 
             return value.ToString();
@@ -38,7 +38,7 @@ namespace GestorDocumentoApp.Utils
             {
                 var displayAttribute = memberInfo.GetCustomAttribute<DisplayAttribute>();
                 if (displayAttribute != null)
-                    return displayAttribute.GetName();
+                    return displayAttribute.GetName() ?? value.ToString();
             }
 
             return value.ToString();

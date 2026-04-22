@@ -1,5 +1,6 @@
 ﻿using GestorDocumentoApp.Data;
 using GestorDocumentoApp.Models;
+using GestorDocumentoApp.Services;
 using GestorDocumentoApp.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -17,21 +18,24 @@ namespace GestorDocumentoApp.Controllers
     {
         private readonly ScmDocumentContext _scmDocumentContext;
         private readonly ILogger<VersionController> _logger;
+        private readonly ChangeRequestLifecycleService _changeRequestLifecycleService;
 
         public const string VERSION_STATE_ACTIVE = "active";
         public const string VERSION_STATE_INACTIVE = "inactive";
 
-        public VersionController(ScmDocumentContext scmDocumentContext, ILogger<VersionController> logger)
+        public VersionController(ScmDocumentContext scmDocumentContext, ILogger<VersionController> logger, ChangeRequestLifecycleService changeRequestLifecycleService)
         {
             _scmDocumentContext = scmDocumentContext;
             _logger = logger;
+            _changeRequestLifecycleService = changeRequestLifecycleService;
         }
 
         public async Task<IActionResult> Index(int elementId)
         {
+            var userId = GetCurrentUserId();
             var element = await _scmDocumentContext.Elements.Include(x => x.Versions.OrderByDescending(x => x.UploadDate))
-                .ThenInclude(x => x.ParentVersion)
-                .ThenInclude(x => x.RequirementType).FirstOrDefaultAsync(x => x.Id == elementId);
+                .ThenInclude(x => x.ParentVersion!)
+                .ThenInclude(x => x.RequirementType).FirstOrDefaultAsync(x => x.Id == elementId && x.Project.UserId == userId);
 
             if (element == null)
             {
@@ -43,9 +47,59 @@ namespace GestorDocumentoApp.Controllers
 
         }
 
+        [HttpGet]
+        public async Task<IActionResult> Compare(int elementId, int sourceVersionId, int targetVersionId)
+        {
+            var userId = GetCurrentUserId();
+            if (sourceVersionId == targetVersionId)
+            {
+                TempData["Message"] = "Selecciona dos versiones diferentes para comparar.";
+                TempData["MessageType"] = "warning";
+                return RedirectToAction(nameof(Index), new { elementId });
+            }
+
+            var versions = await _scmDocumentContext.Versions
+                .AsNoTracking()
+                .Include(x => x.RequirementType)
+                .Include(x => x.ChangeRequest)
+                .Where(x => x.ElementId == elementId && x.Element.Project.UserId == userId)
+                .Where(x => x.Id == sourceVersionId || x.Id == targetVersionId)
+                .ToListAsync();
+
+            var source = versions.FirstOrDefault(x => x.Id == sourceVersionId);
+            var target = versions.FirstOrDefault(x => x.Id == targetVersionId);
+            if (source is null || target is null)
+            {
+                return NotFound();
+            }
+
+            var elementName = await _scmDocumentContext.Elements
+                .AsNoTracking()
+                .Where(x => x.Id == elementId && x.Project.UserId == userId)
+                .Select(x => x.Name)
+                .FirstOrDefaultAsync();
+            if (elementName is null)
+            {
+                return NotFound();
+            }
+
+            var vm = new VersionCompareVM
+            {
+                ElementId = elementId,
+                ElementName = elementName,
+                Source = ToSnapshot(source),
+                Target = ToSnapshot(target),
+                ChangeLog = BuildChangeLog(source, target)
+            };
+
+            return View(vm);
+        }
+
         public async Task<IActionResult> Create(int elementId)
         {
-            var element = await _scmDocumentContext.Elements.FindAsync(elementId);
+            var userId = GetCurrentUserId();
+            var element = await _scmDocumentContext.Elements
+                .FirstOrDefaultAsync(x => x.Id == elementId && x.Project.UserId == userId);
 
             if (element is null)
             {
@@ -88,7 +142,9 @@ namespace GestorDocumentoApp.Controllers
         {
             try
             {
-                var element = await _scmDocumentContext.Elements.FindAsync(elementId);
+                var userId = GetCurrentUserId();
+                var element = await _scmDocumentContext.Elements
+                    .FirstOrDefaultAsync(x => x.Id == elementId && x.Project.UserId == userId);
 
                 if (element is null)
                 {
@@ -97,6 +153,13 @@ namespace GestorDocumentoApp.Controllers
 
                 if (!ModelState.IsValid)
                 {
+                    await LoadDropDowns(versionVM);
+                    return View(versionVM);
+                }
+
+                if (versionVM.ChangeRequestId is null || versionVM.Phase is null || versionVM.Iteration is null || versionVM.RequirementTypeId is null)
+                {
+                    ModelState.AddModelError(string.Empty, "Debe completar todos los campos obligatorios.");
                     await LoadDropDowns(versionVM);
                     return View(versionVM);
                 }
@@ -113,7 +176,7 @@ namespace GestorDocumentoApp.Controllers
                     ChangeRequestId = versionVM.ChangeRequestId.Value,
                     Phase = versionVM.Phase.Value,
                     iteration = versionVM.Iteration.Value,
-                    UserId = User.FindFirstValue(ClaimTypes.NameIdentifier),
+                    UserId = userId,
                     RequirementTypeId = versionVM.RequirementTypeId.Value,
                     ParentVersionId = versionVM.ParentVersionId
                 };
@@ -141,7 +204,9 @@ namespace GestorDocumentoApp.Controllers
 
         public async Task<IActionResult> Edit([FromRoute] int id)
         {
-            var version = await _scmDocumentContext.Versions.FindAsync(id);
+            var userId = GetCurrentUserId();
+            var version = await _scmDocumentContext.Versions
+                .FirstOrDefaultAsync(x => x.Id == id && x.Element.Project.UserId == userId);
 
             if (version is null)
             {
@@ -178,7 +243,9 @@ namespace GestorDocumentoApp.Controllers
         {
             try
             {
-                var version = await _scmDocumentContext.Versions.FindAsync(id);
+                var userId = GetCurrentUserId();
+                var version = await _scmDocumentContext.Versions
+                    .FirstOrDefaultAsync(x => x.Id == id && x.Element.Project.UserId == userId);
 
                 if (version is null)
                 {
@@ -187,6 +254,13 @@ namespace GestorDocumentoApp.Controllers
 
                 if (!ModelState.IsValid)
                 {
+                    await LoadDropDowns(versionVM);
+                    return View(versionVM);
+                }
+
+                if (versionVM.ChangeRequestId is null || versionVM.Phase is null || versionVM.Iteration is null || versionVM.RequirementTypeId is null)
+                {
+                    ModelState.AddModelError(string.Empty, "Debe completar todos los campos obligatorios.");
                     await LoadDropDowns(versionVM);
                     return View(versionVM);
                 }
@@ -213,7 +287,7 @@ namespace GestorDocumentoApp.Controllers
                 TempData["Message"] = "El CR ya esta asociado a una version.";
                 TempData["MessageType"] = "warning";
 
-                return RedirectToAction(nameof(Index), new { elementId = versionVM.ElementName });
+                return RedirectToAction(nameof(Index), new { elementId = versionVM.ElementId });
             }
             catch (Exception ex)
             {
@@ -227,7 +301,9 @@ namespace GestorDocumentoApp.Controllers
         {
             try
             {
-                var version = await _scmDocumentContext.Versions.FindAsync(id);
+                var userId = GetCurrentUserId();
+                var version = await _scmDocumentContext.Versions
+                    .FirstOrDefaultAsync(x => x.Id == id && x.Element.Project.UserId == userId);
 
                 if (version is null)
                 {
@@ -250,7 +326,9 @@ namespace GestorDocumentoApp.Controllers
         [HttpPost]
         public async Task<IActionResult> SetVersion(int id)
         {
-            var version = await _scmDocumentContext.Versions.Include(x=>x.ChangeRequest).Where(x=>x.Id==id).FirstOrDefaultAsync();
+            var userId = GetCurrentUserId();
+            var version = await _scmDocumentContext.Versions.Include(x=>x.ChangeRequest)
+                .Where(x=>x.Id==id && x.Element.Project.UserId == userId).FirstOrDefaultAsync();
             if (version is null)
             {
                 TempData["Message"] = "No existe la version.";
@@ -276,9 +354,15 @@ namespace GestorDocumentoApp.Controllers
                 TempData["MessageType"] = "success";
 
                 version.State = VERSION_STATE_ACTIVE;
+                var previousStatus = version.ChangeRequest.Status;
                 version.ChangeRequest.Status = StatusCR.Baselined;
 
                 await _scmDocumentContext.SaveChangesAsync();
+                await _changeRequestLifecycleService.RegisterStatusSetByVersionAsync(
+                    version.ChangeRequest,
+                    userId,
+                    previousStatus,
+                    "Cambio a linea base por activacion de version.");
 
                 return RedirectToAction(nameof(Index), new { elementId = version.ElementId });
             }
@@ -296,8 +380,9 @@ namespace GestorDocumentoApp.Controllers
         [HttpPost]
         public async Task<IActionResult> UpVersion(int id)
         {
+            var userId = GetCurrentUserId();
             var version = await _scmDocumentContext.Versions
-                .Where(x => x.Id == id).FirstOrDefaultAsync();
+                .Where(x => x.Id == id && x.Element.Project.UserId == userId).FirstOrDefaultAsync();
 
             if (version is null)
             {
@@ -318,7 +403,7 @@ namespace GestorDocumentoApp.Controllers
                 var versionLevelUp = await _scmDocumentContext.Versions
                     .Include(x => x.ParentVersion)
                     .Include(x=>x.ChangeRequest)
-                    .FirstOrDefaultAsync(x => x.ParentVersion.Id == version.Id);
+                    .FirstOrDefaultAsync(x => x.ParentVersionId == version.Id);
 
                 if (versionLevelUp is null)
                 {
@@ -330,9 +415,15 @@ namespace GestorDocumentoApp.Controllers
                 version.State = VERSION_STATE_INACTIVE;
 
                 versionLevelUp.State = VERSION_STATE_ACTIVE;
+                var previousStatus = versionLevelUp.ChangeRequest.Status;
                 versionLevelUp.ChangeRequest.Status = StatusCR.Baselined;
 
                 await _scmDocumentContext.SaveChangesAsync();
+                await _changeRequestLifecycleService.RegisterStatusSetByVersionAsync(
+                    versionLevelUp.ChangeRequest,
+                    userId,
+                    previousStatus,
+                    "Cambio a linea base por promocion de version.");
 
                 TempData["Message"] = "Version subida de nivel.";
                 TempData["MessageType"] = "success";
@@ -349,8 +440,10 @@ namespace GestorDocumentoApp.Controllers
         [HttpPost]
         public async Task<IActionResult> DownVersion(int id)
         {
+            var userId = GetCurrentUserId();
 
-            var version = await _scmDocumentContext.Versions.Include(x => x.ParentVersion).Where(x => x.Id == id).FirstOrDefaultAsync();
+            var version = await _scmDocumentContext.Versions.Include(x => x.ParentVersion)
+                .Where(x => x.Id == id && x.Element.Project.UserId == userId).FirstOrDefaultAsync();
             if (version is null)
             {
                 return NotFound();
@@ -374,6 +467,12 @@ namespace GestorDocumentoApp.Controllers
                 }
 
                 var versionParent = await _scmDocumentContext.Versions.FindAsync(version.ParentVersionId);
+                if (versionParent is null)
+                {
+                    TempData["Message"] = "No existe una version padre.";
+                    TempData["MessageType"] = "warning";
+                    return RedirectToAction(nameof(Index), new { elementId = version.ElementId });
+                }
 
 
                 version.State = VERSION_STATE_INACTIVE;
@@ -396,11 +495,24 @@ namespace GestorDocumentoApp.Controllers
 
         private async Task LoadDropDowns(VersionVM vm)
         {
+            var userId = GetCurrentUserId();
             var requirementTypes = await _scmDocumentContext.RequirementTypes.OrderBy(r => r.Name).ToListAsync();
             var versions = await _scmDocumentContext.Versions.Where(x => x.ElementId == vm.ElementId).OrderBy(v => v.VersionCode).ToListAsync();
             var changeRequests = await _scmDocumentContext.ChangeRequests.
                 Where(x => x.ElementId == vm.ElementId).
-                Where(x => x.Action == ActionCR.Approved).ToListAsync();
+                Where(x => x.Action == ActionCR.Approved).
+                Where(x => x.Element.Project.UserId == userId).ToListAsync();
+
+            var elementBelongsToUser = await _scmDocumentContext.Elements
+                .AnyAsync(x => x.Id == vm.ElementId && x.Project.UserId == userId);
+            if (!elementBelongsToUser)
+            {
+                vm.RequirementTypes = [];
+                vm.PreviousVersions = [];
+                vm.ChangeRequests = [];
+                vm.Phases = [];
+                return;
+            }
 
             vm.RequirementTypes = requirementTypes.Select(r => new SelectListItem { Text = r.Name, Value = r.Id.ToString() });
             vm.PreviousVersions = versions.Select(v => new SelectListItem { Text = v.VersionCode + " | " + v.Id, Value = v.Id.ToString() });
@@ -413,6 +525,77 @@ namespace GestorDocumentoApp.Controllers
                     new SelectListItem { Value="5",Text="Prueba"},
                     new SelectListItem { Value="6",Text="Mantenimiento"},
                 };
+        }
+
+        private string GetCurrentUserId()
+        {
+            return User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        }
+
+        private static VersionSnapshotVM ToSnapshot(Models.Version version)
+        {
+            return new VersionSnapshotVM
+            {
+                Id = version.Id,
+                Name = version.Name,
+                VersionCode = version.VersionCode,
+                State = version.State,
+                ElementUrl = version.ElementUrl,
+                ToolUrl = version.ToolUrl,
+                Phase = version.Phase,
+                Iteration = version.iteration,
+                RequirementTypeName = version.RequirementType?.Name ?? "-",
+                ChangeRequestCode = version.ChangeRequest?.Code ?? "-",
+                UploadDate = version.UploadDate,
+                ParentVersionId = version.ParentVersionId
+            };
+        }
+
+        private static IEnumerable<string> BuildChangeLog(Models.Version source, Models.Version target)
+        {
+            var changes = new List<string>();
+            if (!string.Equals(source.Name, target.Name, StringComparison.Ordinal))
+            {
+                changes.Add($"Nombre: '{source.Name}' -> '{target.Name}'");
+            }
+            if (!string.Equals(source.VersionCode, target.VersionCode, StringComparison.Ordinal))
+            {
+                changes.Add($"Codigo version: '{source.VersionCode}' -> '{target.VersionCode}'");
+            }
+            if (!string.Equals(source.State, target.State, StringComparison.Ordinal))
+            {
+                changes.Add($"Estado: '{source.State}' -> '{target.State}'");
+            }
+            if (source.Phase != target.Phase)
+            {
+                changes.Add($"Fase: {PhaseHelper.GetPhaseName(source.Phase)} -> {PhaseHelper.GetPhaseName(target.Phase)}");
+            }
+            if (source.iteration != target.iteration)
+            {
+                changes.Add($"Iteracion: {source.iteration} -> {target.iteration}");
+            }
+            if (!string.Equals(source.ElementUrl, target.ElementUrl, StringComparison.Ordinal))
+            {
+                changes.Add("Cambio de enlace de documento.");
+            }
+            if (!string.Equals(source.ToolUrl, target.ToolUrl, StringComparison.Ordinal))
+            {
+                changes.Add("Cambio de enlace de herramienta.");
+            }
+            if (source.RequirementTypeId != target.RequirementTypeId)
+            {
+                changes.Add($"Tipo de requerimiento: '{source.RequirementType?.Name ?? "-"}' -> '{target.RequirementType?.Name ?? "-"}'");
+            }
+            if (source.ChangeRequestId != target.ChangeRequestId)
+            {
+                changes.Add($"Solicitud de cambio: '{source.ChangeRequest?.Code ?? "-"}' -> '{target.ChangeRequest?.Code ?? "-"}'");
+            }
+            if (source.ParentVersionId != target.ParentVersionId)
+            {
+                changes.Add($"Version padre: {source.ParentVersionId?.ToString() ?? "-"} -> {target.ParentVersionId?.ToString() ?? "-"}");
+            }
+
+            return changes.Count == 0 ? ["No se detectaron diferencias entre versiones."] : changes;
         }
     }
 

@@ -10,13 +10,46 @@ namespace GestorDocumentoApp.Models
         public PriorityCR Priority { get; set; }
         public StatusCR Status { get; set; }
         public DateTime CreatedAt { get; set; }
-        public string Code { get; set; }
+        public string Code { get; set; } = string.Empty;
 
         public string? Remarks { get; set; }
         public ActionCR? Action { get; set; }
+        public ApprovalStatus? ApprovalStatus { get; set; }
+        public string? ApprovalAssigneeUserId { get; set; }
+        public DateTime? ApprovalRequestedAt { get; set; }
+        public DateTime? ApprovalDueAt { get; set; }
+        public DateTime? ApprovalDecidedAt { get; set; }
         public int ElementId { get; set; }
-        public Element Element { get; set; }
+        public Element Element { get; set; } = null!;
+        public List<ChangeRequestAudit> Audits { get; set; } = [];
+        public List<GitTraceLink> GitTraceLinks { get; set; } = new List<GitTraceLink>();
 
+    }
+
+    public class ChangeRequestAudit
+    {
+        public int Id { get; set; }
+        public int ChangeRequestId { get; set; }
+        public ChangeRequest ChangeRequest { get; set; } = null!;
+        public DateTime ChangedAt { get; set; }
+        public string ChangedByUserId { get; set; } = string.Empty;
+        public string EventType { get; set; } = string.Empty;
+        public string Summary { get; set; } = string.Empty;
+    }
+
+    public class GitTraceLink
+    {
+        public int Id { get; set; }
+        public int ChangeRequestId { get; set; }
+        public ChangeRequest ChangeRequest { get; set; } = null!;
+        public int? VersionId { get; set; }
+        public Version? Version { get; set; }
+        public string Repository { get; set; } = string.Empty;
+        public string? CommitSha { get; set; }
+        public string? PullRequestUrl { get; set; }
+        public int? PullRequestNumber { get; set; }
+        public string LinkedByUserId { get; set; } = string.Empty;
+        public DateTime LinkedAt { get; set; }
     }
 
     public enum ClasificationTypeCR
@@ -94,5 +127,20 @@ namespace GestorDocumentoApp.Models
         [Display(Name = "En espera")]
         InWait = 4,
     }
-   
+
+    public enum ApprovalStatus
+    {
+        [Display(Name = "Pendiente")]
+        Pending = 1,
+
+        [Display(Name = "Aprobado")]
+        Approved = 2,
+
+        [Display(Name = "Rechazado")]
+        Rejected = 3,
+
+        [Display(Name = "Expirado")]
+        Expired = 4
+    }
+
 }

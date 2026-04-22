@@ -17,7 +17,10 @@
             @RenderBody()
         </main>
     </div>
-    
+
+    <partial name="_OnboardingChatbot" />
+
+    <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     @await RenderSectionAsync("Scripts", required: false)
 

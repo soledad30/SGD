@@ -1,0 +1,76 @@
+@model RegisterVM
+
+@{
+    Layout = "_LayoutLogin";
+}
+
+<div class="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8">
+    <div class="sm:mx-auto sm:w-full sm:max-w-sm">
+        <h2 class="mt-10 text-center text-2xl leading-9 font-bold tracking-tight text-gray-900">
+            Crear cuenta
+        </h2>
+    </div>
+
+    <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
+        <form asp-action="Register" asp-controller="Account" method="post" class="space-y-6">
+            <div>
+                <label asp-for="Email" class="block text-sm leading-6 font-medium text-gray-900">Correo</label>
+                <div class="mt-2">
+                    <input asp-for="Email" type="email" autocomplete="email"
+                           class="block w-full rounded-md border-0 px-2 py-1.5 text-gray-900 shadow-sm ring-1 ring-gray-300 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-blue-600 focus:outline-none focus:ring-inset sm:text-sm sm:leading-6" />
+                </div>
+                <span asp-validation-for="Email" class="text-sm text-red-600"></span>
+            </div>
+
+            <div>
+                <label asp-for="Password" class="block text-sm leading-6 font-medium text-gray-900">Contraseña</label>
+                <div class="mt-2">
+                    <input asp-for="Password" type="password" autocomplete="new-password"
+                           class="block w-full rounded-md border-0 px-2 py-1.5 text-gray-900 shadow-sm ring-1 ring-gray-300 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-blue-600 focus:outline-none focus:ring-inset sm:text-sm sm:leading-6" />
+                </div>
+                <span asp-validation-for="Password" class="text-sm text-red-600"></span>
+                <p class="mt-1 text-xs text-gray-500">Minimo 8 caracteres, con mayuscula, numero y simbolo.</p>
+            </div>
+
+            <div>
+                <label asp-for="ConfirmPassword" class="block text-sm leading-6 font-medium text-gray-900">Confirmar contraseña</label>
+                <div class="mt-2">
+                    <input asp-for="ConfirmPassword" type="password" autocomplete="new-password"
+                           class="block w-full rounded-md border-0 px-2 py-1.5 text-gray-900 shadow-sm ring-1 ring-gray-300 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-blue-600 focus:outline-none focus:ring-inset sm:text-sm sm:leading-6" />
+                </div>
+                <span asp-validation-for="ConfirmPassword" class="text-sm text-red-600"></span>
+            </div>
+
+            <div class="flex items-start">
+                <div class="flex h-5 items-center">
+                    <input asp-for="AcceptTerms" type="checkbox"
+                           class="h-4 w-4 rounded border border-gray-300 bg-gray-50 focus:ring-blue-600 focus:ring-2" />
+                </div>
+                <div class="ml-3 text-sm">
+                    <label asp-for="AcceptTerms" class="text-gray-700">Acepto terminos y condiciones</label>
+                    <span asp-validation-for="AcceptTerms" class="block text-sm text-red-600"></span>
+                </div>
+            </div>
+
+            @Html.ValidationSummary(true, "", new { @class = "text-red-500" })
+
+            <div>
+                <button type="submit"
+                        class="shadow-s flex w-full justify-center rounded-md bg-blue-700 px-3 py-1.5 text-sm leading-6 font-semibold text-white hover:bg-blue-800 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-blue-600">
+                    Registrarme
+                </button>
+            </div>
+        </form>
+
+        <p class="mt-10 text-center text-sm text-gray-500">
+            Ya tienes una cuenta?
+            <a asp-controller="Account" asp-action="Login" class="leading-6 font-semibold text-blue-600 hover:text-blue-500">
+                Iniciar sesión
+            </a>
+        </p>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

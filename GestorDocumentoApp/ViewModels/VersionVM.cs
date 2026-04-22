@@ -13,15 +13,15 @@ namespace GestorDocumentoApp.ViewModels
     {
         public int Id { get; set; }
 
-        public string ElementName { get; set; }
+        public string ElementName { get; set; } = string.Empty;
         public int ElementId { get; set; }
 
         [Required(ErrorMessage = "El nombre es requerido.")]
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "La URL del elemento es requerida.")]
         [Display(Name = "Elemento URL")]
-        public string ElementUrl { get; set; }
+        public string ElementUrl { get; set; } = string.Empty;
 
 
         [Required(ErrorMessage = "La fecha de subida es requerida.")]
@@ -29,14 +29,14 @@ namespace GestorDocumentoApp.ViewModels
         public DateTime UploadDate { get; set; } = DateTime.Now;
 
         [Required(ErrorMessage = "El estado es requerido.")]
-        public string State { get; set; }
+        public string State { get; set; } = string.Empty;
 
         [Display(Name = "Herramienta URL")]
         public string? ToolUrl { get; set; }
 
         [Required(ErrorMessage = "El código de versión es requerido.")]
         [Display(Name = "Código de versión")]
-        public string VersionCode { get; set; }
+        public string VersionCode { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "La fase es requerido.")]
         public int? Phase { get; set; } = 1;
@@ -62,7 +62,7 @@ namespace GestorDocumentoApp.ViewModels
         public IEnumerable<SelectListItem>? Phases { get; set; }
 
         [ValidateNever]
-        public IEnumerable<SelectListItem?> ChangeRequests { get; set; }
+        public IEnumerable<SelectListItem?> ChangeRequests { get; set; } = [];
 
     }
 
@@ -71,12 +71,37 @@ namespace GestorDocumentoApp.ViewModels
         public int Id { get; set; }
 
         [Required(ErrorMessage = "Nombre es requerido")]
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
 
         public string? Description
         {
             get; set;
         }
+    }
+
+    public class VersionCompareVM
+    {
+        public int ElementId { get; set; }
+        public string ElementName { get; set; } = string.Empty;
+        public VersionSnapshotVM Source { get; set; } = new();
+        public VersionSnapshotVM Target { get; set; } = new();
+        public IEnumerable<string> ChangeLog { get; set; } = [];
+    }
+
+    public class VersionSnapshotVM
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string VersionCode { get; set; } = string.Empty;
+        public string State { get; set; } = string.Empty;
+        public string ElementUrl { get; set; } = string.Empty;
+        public string? ToolUrl { get; set; }
+        public int Phase { get; set; }
+        public int Iteration { get; set; }
+        public string RequirementTypeName { get; set; } = string.Empty;
+        public string ChangeRequestCode { get; set; } = string.Empty;
+        public DateTime UploadDate { get; set; }
+        public int? ParentVersionId { get; set; }
     }
 
     public static class PhaseHelper

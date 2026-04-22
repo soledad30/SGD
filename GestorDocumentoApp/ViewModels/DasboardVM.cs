@@ -4,6 +4,17 @@
     {
         public List<ChangeRequestSummaryVM> ChangeRequestSummary { get; set; } = new();
         public List<ProjectConfigurationVM> ProjectConfigurations { get; set; } = new();
+        public DashboardKpiVM Kpis { get; set; } = new();
+    }
+
+    public class DashboardKpiVM
+    {
+        public int TotalCr { get; set; }
+        public int OpenCr { get; set; }
+        public int BaselinedCr { get; set; }
+        public int ApprovedCr { get; set; }
+        public double AvgOpenAgeDays { get; set; }
+        public double AvgBaselinedLeadTimeDays { get; set; }
     }
 
     public class ChangeRequestSummaryVM

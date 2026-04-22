@@ -1,0 +1,48 @@
+<div id="onboarding-chatbot-root" style="position:fixed; right:16px; bottom:16px; z-index:99999; font-family:Arial, sans-serif;">
+    <button id="onboarding-chatbot-open" type="button" style="border:none; border-radius:999px; background:#4338ca; color:#fff; font-weight:600; padding:10px 14px; cursor:pointer;">
+        Guia de uso
+    </button>
+
+    <div id="onboarding-chatbot-panel" style="display:none; width:340px; max-height:80vh; overflow:hidden; border:1px solid #cbd5e1; border-radius:12px; background:#fff; box-shadow:0 10px 25px rgba(0,0,0,.2);">
+        <div style="display:flex; align-items:center; justify-content:space-between; background:#4338ca; color:#fff; padding:10px 12px;">
+            <div>
+                <div style="font-size:13px; font-weight:700;">Asistente de aprendizaje</div>
+                <div style="font-size:11px; opacity:.9;">Te guio paso a paso</div>
+            </div>
+            <button id="onboarding-chatbot-close" type="button" style="border:none; background:transparent; color:#fff; font-size:12px; cursor:pointer;">X</button>
+        </div>
+
+        <div style="padding:10px; border-bottom:1px solid #e2e8f0; background:#f8fafc;">
+            <div style="font-size:12px; font-weight:700; margin-bottom:6px;">Tu progreso</div>
+            <div id="onboarding-chatbot-checklist" style="font-size:12px;"></div>
+            <button id="onboarding-chatbot-refresh" type="button" style="margin-top:6px; border:none; border-radius:6px; background:#e2e8f0; padding:4px 8px; font-size:11px; cursor:pointer;">
+                Actualizar progreso
+            </button>
+        </div>
+
+        <div id="onboarding-chatbot-next" style="display:none; padding:10px; border-bottom:1px solid #e2e8f0; background:#eef2ff;">
+            <div style="font-size:12px; font-weight:700; color:#3730a3;">Siguiente paso recomendado</div>
+            <div id="onboarding-chatbot-next-label" style="font-size:12px; margin:6px 0;"></div>
+            <button id="onboarding-chatbot-next-go" type="button" style="border:none; border-radius:6px; background:#4338ca; color:#fff; font-size:11px; padding:5px 8px; cursor:pointer;">
+                Ir ahora
+            </button>
+        </div>
+
+        <div id="onboarding-chatbot-messages" style="max-height:220px; overflow-y:auto; padding:10px; background:#fff;"></div>
+
+        <div style="padding:10px; border-top:1px solid #e2e8f0;">
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
+                <button type="button" data-chatbot-quick="empezar" style="border:none; border-radius:6px; background:#e2e8f0; font-size:11px; padding:4px 8px; cursor:pointer;">Como empiezo</button>
+                <button type="button" data-chatbot-quick="crear cr" style="border:none; border-radius:6px; background:#e2e8f0; font-size:11px; padding:4px 8px; cursor:pointer;">Crear CR</button>
+                <button type="button" data-chatbot-quick="versiones" style="border:none; border-radius:6px; background:#e2e8f0; font-size:11px; padding:4px 8px; cursor:pointer;">Versiones</button>
+                <button type="button" data-chatbot-quick="trazabilidad" style="border:none; border-radius:6px; background:#e2e8f0; font-size:11px; padding:4px 8px; cursor:pointer;">Trazabilidad Git</button>
+            </div>
+            <form id="onboarding-chatbot-form" style="display:flex; gap:6px;">
+                <input id="onboarding-chatbot-input" type="text" placeholder="Escribe tu duda..." style="flex:1; border:1px solid #cbd5e1; border-radius:6px; padding:8px; font-size:12px;" />
+                <button type="submit" style="border:none; border-radius:6px; background:#4338ca; color:#fff; font-size:12px; font-weight:700; padding:8px 10px; cursor:pointer;">
+                    Enviar
+                </button>
+            </form>
+        </div>
+    </div>
+</div>

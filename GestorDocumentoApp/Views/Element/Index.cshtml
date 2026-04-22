@@ -102,6 +102,10 @@
                 </td>
 
                 <td class="flex items-center gap-3 px-6 py-4">
+                    <a asp-controller="Version" asp-action="Index" asp-route-elementId="@element.Id"
+                       class="rounded bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-200">
+                        Versiones
+                    </a>
                     
                     <a asp-action="Edit" asp-route-id="@element.Id"
                        class="text-blue-600 hover:text-blue-800 dark:text-blue-500 dark:hover:text-blue-400">

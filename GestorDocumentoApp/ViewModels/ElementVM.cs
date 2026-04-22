@@ -9,7 +9,7 @@ namespace GestorDocumentoApp.ViewModels
     {
         public int Id { get; set; }
         [Required(ErrorMessage ="Nombre es requerido.")]
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
 
         [Required(ErrorMessage = "Fecha de creacion es requerido.")]
@@ -22,10 +22,10 @@ namespace GestorDocumentoApp.ViewModels
         public int? ProjectId { get; set; }
 
         [ValidateNever]
-        public IEnumerable<SelectListItem> ElementTypes { get; set; }
+        public IEnumerable<SelectListItem> ElementTypes { get; set; } = [];
 
         [ValidateNever]
-        public IEnumerable<SelectListItem> Projects { get; set; }
+        public IEnumerable<SelectListItem> Projects { get; set; } = [];
 
     }
 
@@ -34,9 +34,9 @@ namespace GestorDocumentoApp.ViewModels
 
         public string? ProjectName { get; set; }
         public int? ProjectId { get; set; }
-        public bool HasPrevious { get; set; }
-        public bool HasNext { get; set; }
-        public IEnumerable<SelectListItem> Projects { get; set; }
+        public new bool HasPrevious { get; set; }
+        public new bool HasNext { get; set; }
+        public IEnumerable<SelectListItem> Projects { get; set; } = [];
     }
 
     public class ElementTypeVM
@@ -44,7 +44,7 @@ namespace GestorDocumentoApp.ViewModels
         public int Id { get; set; }
 
         [Required(ErrorMessage = "Nombre es requerido")]
-        public string Name { get;set;  }
+        public string Name { get;set;  } = string.Empty;
 
         public string? Description { get; set; }
     }

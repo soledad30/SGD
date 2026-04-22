@@ -25,7 +25,19 @@ namespace GestorDocumentoApp.Data
         public DbSet<GestorDocumentoApp.Models.Version> Versions { get; set; }
 
         public DbSet<ChangeRequest> ChangeRequests { get; set; }
+        public DbSet<ChangeRequestAudit> ChangeRequestAudits { get; set; }
+        public DbSet<GitTraceLink> GitTraceLinks { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
 
+        protected override void OnModelCreating(ModelBuilder builder)
+        {
+            base.OnModelCreating(builder);
 
+            builder.Entity<Notification>()
+                .HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        }
     }
 }
