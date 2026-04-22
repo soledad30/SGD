@@ -1,7 +1,7 @@
 sistema de gestion documental 
 
 
-1. ¿Qué hace el proyecto?
+
 GestorDocumentoApp es un Sistema de Gestión de Documentos SCM (Software Configuration Management) diseñado para el manejo de artefactos de software en el ciclo de vida del desarrollo. Sus funcionalidades principales incluyen:
 
 Características Clave:
