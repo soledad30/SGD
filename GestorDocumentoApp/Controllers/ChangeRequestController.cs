@@ -1434,8 +1434,14 @@ namespace GestorDocumentoApp.Controllers
 
             if (pullRequestNumber.HasValue)
             {
-                var pr = await _githubService.GetPullRequestAsync(owner, repo, pullRequestNumber.Value);
-                if (pr is null)
+                var pullRequestCheck = await _githubService.CheckPullRequestAsync(owner, repo, pullRequestNumber.Value);
+                if (pullRequestCheck.Status == GitHubCheckStatus.Unavailable)
+                {
+                    TrySetTempMessage("No se pudo validar el Pull Request por indisponibilidad temporal de GitHub. Intenta nuevamente.", "warning");
+                    return false;
+                }
+
+                if (pullRequestCheck.Status != GitHubCheckStatus.Valid)
                 {
                     TrySetTempMessage("El Pull Request indicado no existe en el repositorio.", "warning");
                     return false;
