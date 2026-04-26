@@ -32,7 +32,7 @@ namespace GestorDocumentoApp.ViewComponents
 
                 var latest = await _context.Notifications
                     .AsNoTracking()
-                    .Where(x => x.UserId == userId)
+                    .Where(x => x.UserId == userId && !x.IsRead)
                     .OrderByDescending(x => x.CreatedAt)
                     .Take(5)
                     .Select(x => new NotificationVM

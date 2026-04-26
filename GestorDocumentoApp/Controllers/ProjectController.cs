@@ -1,6 +1,8 @@
 ﻿using GestorDocumentoApp.Data;
 using GestorDocumentoApp.Models;
+using GestorDocumentoApp.Services;
 using GestorDocumentoApp.ViewModels;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -12,11 +14,19 @@ namespace GestorDocumentoApp.Controllers
     public class ProjectController : Controller
     {
         private readonly ScmDocumentContext _scmDocumentContext;
+        private readonly ProjectAccessService _projectAccessService;
+        private readonly UserManager<IdentityUser> _userManager;
         private readonly ILogger<ElementTypeController> _logger;
 
-        public ProjectController(ScmDocumentContext scmDocumentContext, ILogger<ElementTypeController> logger)
+        public ProjectController(
+            ScmDocumentContext scmDocumentContext,
+            ProjectAccessService projectAccessService,
+            UserManager<IdentityUser> userManager,
+            ILogger<ElementTypeController> logger)
         {
             _scmDocumentContext = scmDocumentContext;
+            _projectAccessService = projectAccessService;
+            _userManager = userManager;
             _logger = logger;
         }
 
@@ -24,7 +34,10 @@ namespace GestorDocumentoApp.Controllers
         public async Task<IActionResult> Index()
         {
             var useId = GetCurrentUserId();
-            var projects = await _scmDocumentContext.Projects.Where(x => x.UserId == useId).OrderBy(project => project.Name).ToListAsync();
+            var projects = await _projectAccessService.AccessibleProjectsQuery(useId)
+                .AsNoTracking()
+                .OrderBy(project => project.Name)
+                .ToListAsync();
             return View(projects);
 
         }
@@ -53,6 +66,18 @@ namespace GestorDocumentoApp.Controllers
                 _scmDocumentContext.Add(project);
                 await _scmDocumentContext.SaveChangesAsync();
 
+                _scmDocumentContext.ProjectMembers.Add(new ProjectMember
+                {
+                    ProjectId = project.Id,
+                    UserId = project.UserId,
+                    Role = ProjectMemberRole.Owner,
+                    CanEdit = true,
+                    CanApprove = true,
+                    JoinedAt = DateTime.UtcNow,
+                    Active = true
+                });
+                await _scmDocumentContext.SaveChangesAsync();
+
                 return RedirectToAction(nameof(Index));
             }
 
@@ -69,7 +94,11 @@ namespace GestorDocumentoApp.Controllers
         public async Task<IActionResult> Edit([FromRoute] int id)
         {
             var userId = GetCurrentUserId();
-            var project = await _scmDocumentContext.Projects.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
+            if (!await _projectAccessService.CanEditProjectAsync(id, userId))
+            {
+                return Forbid();
+            }
+            var project = await _scmDocumentContext.Projects.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
 
             if (project is null)
             {
@@ -97,7 +126,11 @@ namespace GestorDocumentoApp.Controllers
                 }
 
                 var userId = GetCurrentUserId();
-                var project = await _scmDocumentContext.Projects.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
+                if (!await _projectAccessService.CanEditProjectAsync(id, userId))
+                {
+                    return Forbid();
+                }
+                var project = await _scmDocumentContext.Projects.FirstOrDefaultAsync(x => x.Id == id);
 
                 if (project is null)
                 {
@@ -127,7 +160,11 @@ namespace GestorDocumentoApp.Controllers
             try
             {
                 var userId = GetCurrentUserId();
-                var project = await _scmDocumentContext.Projects.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
+                if (!await _projectAccessService.CanEditProjectAsync(id, userId))
+                {
+                    return Forbid();
+                }
+                var project = await _scmDocumentContext.Projects.FirstOrDefaultAsync(x => x.Id == id);
 
                 if (project is null)
                 {
@@ -148,7 +185,8 @@ namespace GestorDocumentoApp.Controllers
         public async Task<IActionResult> Show(int id)
         {
             var userId = GetCurrentUserId();
-            var project = await _scmDocumentContext.Projects.AsNoTracking().Include(x => x.Elements.OrderByDescending(x=>x.CreatedDate)).ThenInclude(x=>x.Versions).Where(x => x.Id == id && x.UserId == userId)
+            var project = await _projectAccessService.AccessibleProjectsQuery(userId)
+                .AsNoTracking().Include(x => x.Elements.OrderByDescending(x=>x.CreatedDate)).ThenInclude(x=>x.Versions)
                 .FirstOrDefaultAsync(x=>x.Id==id);
             if (project is null)
             {
@@ -157,10 +195,158 @@ namespace GestorDocumentoApp.Controllers
             return View(project);
         }
 
+        public async Task<IActionResult> Members(int id)
+        {
+            var userId = GetCurrentUserId();
+            if (!await _projectAccessService.CanViewProjectAsync(id, userId))
+            {
+                return Forbid();
+            }
+
+            var project = await _scmDocumentContext.Projects
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == id);
+            if (project is null)
+            {
+                return NotFound();
+            }
+
+            var members = await _scmDocumentContext.ProjectMembers
+                .AsNoTracking()
+                .Where(x => x.ProjectId == id)
+                .Join(_userManager.Users,
+                    member => member.UserId,
+                    user => user.Id,
+                    (member, user) => new ProjectMemberRowVM
+                    {
+                        Id = member.Id,
+                        UserId = member.UserId,
+                        Email = user.Email ?? user.UserName ?? member.UserId,
+                        Role = member.Role,
+                        CanEdit = member.CanEdit,
+                        CanApprove = member.CanApprove,
+                        Active = member.Active
+                    })
+                .OrderBy(x => x.Email)
+                .ToListAsync();
+
+            var availableUserEmails = await _userManager.Users
+                .AsNoTracking()
+                .OrderBy(x => x.Email)
+                .Select(x => x.Email ?? x.UserName ?? string.Empty)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToListAsync();
+
+            return View(new ProjectMembersVM
+            {
+                ProjectId = project.Id,
+                ProjectName = project.Name,
+                CurrentUserId = userId,
+                Members = members,
+                AvailableUserEmails = availableUserEmails
+            });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AddMember(ProjectMemberCreateVM vm)
+        {
+            var userId = GetCurrentUserId();
+            if (!await _projectAccessService.CanEditProjectAsync(vm.ProjectId, userId))
+            {
+                return Forbid();
+            }
+
+            if (!ModelState.IsValid)
+            {
+                TempData["Message"] = "Datos de miembro invalidos.";
+                TempData["MessageType"] = "warning";
+                return RedirectToAction(nameof(Members), new { id = vm.ProjectId });
+            }
+
+            var user = await _userManager.FindByEmailAsync(vm.Email.Trim());
+            if (user is null)
+            {
+                TempData["Message"] = "No existe un usuario con ese email.";
+                TempData["MessageType"] = "warning";
+                return RedirectToAction(nameof(Members), new { id = vm.ProjectId });
+            }
+
+            var existing = await _scmDocumentContext.ProjectMembers
+                .FirstOrDefaultAsync(x => x.ProjectId == vm.ProjectId && x.UserId == user.Id);
+            if (existing is not null)
+            {
+                existing.Role = vm.Role;
+                existing.CanEdit = vm.CanEdit;
+                existing.CanApprove = vm.CanApprove;
+                existing.Active = true;
+            }
+            else
+            {
+                _scmDocumentContext.ProjectMembers.Add(new ProjectMember
+                {
+                    ProjectId = vm.ProjectId,
+                    UserId = user.Id,
+                    Role = vm.Role,
+                    CanEdit = vm.CanEdit,
+                    CanApprove = vm.CanApprove,
+                    JoinedAt = DateTime.UtcNow,
+                    Active = true
+                });
+            }
+
+            await _scmDocumentContext.SaveChangesAsync();
+            TempData["Message"] = "Miembro guardado correctamente.";
+            TempData["MessageType"] = "success";
+            return RedirectToAction(nameof(Members), new { id = vm.ProjectId });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UpdateMember(ProjectMemberUpdateVM vm)
+        {
+            var userId = GetCurrentUserId();
+            if (!await _projectAccessService.CanEditProjectAsync(vm.ProjectId, userId))
+            {
+                return Forbid();
+            }
+
+            var member = await _scmDocumentContext.ProjectMembers
+                .FirstOrDefaultAsync(x => x.Id == vm.MemberId && x.ProjectId == vm.ProjectId);
+            if (member is null)
+            {
+                return NotFound();
+            }
+
+            member.Role = vm.Role;
+            member.CanEdit = vm.CanEdit;
+            member.CanApprove = vm.CanApprove;
+            member.Active = vm.Active;
+
+            if (member.Role == ProjectMemberRole.Owner && !member.Active)
+            {
+                var ownerCount = await _scmDocumentContext.ProjectMembers
+                    .CountAsync(x => x.ProjectId == vm.ProjectId && x.Role == ProjectMemberRole.Owner && x.Active);
+                if (ownerCount <= 1)
+                {
+                    TempData["Message"] = "No se puede desactivar el ultimo owner del proyecto.";
+                    TempData["MessageType"] = "warning";
+                    return RedirectToAction(nameof(Members), new { id = vm.ProjectId });
+                }
+            }
+
+            await _scmDocumentContext.SaveChangesAsync();
+            TempData["Message"] = "Miembro actualizado correctamente.";
+            TempData["MessageType"] = "success";
+            return RedirectToAction(nameof(Members), new { id = vm.ProjectId });
+        }
+
         public async Task<IActionResult> AsignElement(int id)
         {
             var userId = GetCurrentUserId();
-            var project = await _scmDocumentContext.Projects.AsNoTracking().Include(x => x.Elements).FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
+            if (!await _projectAccessService.CanEditProjectAsync(id, userId))
+            {
+                return Forbid();
+            }
+            var project = await _scmDocumentContext.Projects.AsNoTracking().Include(x => x.Elements).FirstOrDefaultAsync(x => x.Id == id);
             if (project is null)
             {
                 return NotFound();
@@ -180,7 +366,11 @@ namespace GestorDocumentoApp.Controllers
         public async Task<IActionResult> AsignElement(int id, ProjectElementVM projectElementVM)
         {
             var userId = GetCurrentUserId();
-            var project = await _scmDocumentContext.Projects.AsNoTracking().Include(x => x.Elements).FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
+            if (!await _projectAccessService.CanEditProjectAsync(id, userId))
+            {
+                return Forbid();
+            }
+            var project = await _scmDocumentContext.Projects.AsNoTracking().Include(x => x.Elements).FirstOrDefaultAsync(x => x.Id == id);
             if (project is null)
             {
                 return NotFound();

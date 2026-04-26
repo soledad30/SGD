@@ -1,6 +1,7 @@
 ﻿using GestorDocumentoApp.Data;
 using GestorDocumentoApp.Extensions;
 using GestorDocumentoApp.Models;
+using GestorDocumentoApp.Services;
 using GestorDocumentoApp.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -13,11 +14,13 @@ namespace GestorDocumentoApp.Controllers
     public class ElementController : Controller
     {
         private ScmDocumentContext _scmDocumentContext;
+        private readonly ProjectAccessService _projectAccessService;
         private ILogger<ElementController> _logger;
 
-        public ElementController(ScmDocumentContext scmDocumentContext, ILogger<ElementController> logger)
+        public ElementController(ScmDocumentContext scmDocumentContext, ProjectAccessService projectAccessService, ILogger<ElementController> logger)
         {
             _scmDocumentContext = scmDocumentContext;
+            _projectAccessService = projectAccessService;
             _logger = logger;
         }
 
@@ -28,8 +31,9 @@ namespace GestorDocumentoApp.Controllers
 
             if (projectId.HasValue)
             {
-                project = await _scmDocumentContext.Projects.AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.Id == projectId && x.UserId == userId);
+                project = await _projectAccessService.AccessibleProjectsQuery(userId)
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == projectId);
 
                 if (project is null)
                 {
@@ -37,12 +41,13 @@ namespace GestorDocumentoApp.Controllers
                 }
             }
 
-            var projects = await _scmDocumentContext.Projects.AsNoTracking()
-                .Where(x => x.UserId == userId)
+            var accessibleProjectIds = _projectAccessService.AccessibleProjectIdsQuery(userId);
+            var projects = await _projectAccessService.AccessibleProjectsQuery(userId)
+                .AsNoTracking()
                 .ToListAsync();
 
             IQueryable<Element> query = _scmDocumentContext.Elements
-                .Where(x => x.Project.UserId == userId);
+                .Where(x => accessibleProjectIds.Contains(x.ProjectId));
 
             if (projectId.HasValue)
             {
@@ -72,10 +77,16 @@ namespace GestorDocumentoApp.Controllers
         public async Task<IActionResult> Create()
         {
             var userId = GetCurrentUserId();
+            var editableProjectIds = _scmDocumentContext.Projects
+                .Where(x => x.UserId == userId || x.Members.Any(m =>
+                    m.UserId == userId &&
+                    m.Active &&
+                    (m.CanEdit || m.Role == ProjectMemberRole.Owner || m.Role == ProjectMemberRole.Maintainer || m.Role == ProjectMemberRole.Developer)))
+                .Select(x => x.Id);
 
             var elementTypes = await _scmDocumentContext.ElementTypes.AsNoTracking().OrderBy(elementType => elementType.Name).ToListAsync();
             var projects = await _scmDocumentContext.Projects.AsNoTracking()
-                .Where(x => x.UserId == userId)
+                .Where(x => editableProjectIds.Contains(x.Id))
                 .OrderBy(x => x.Name).ToListAsync();
 
 
@@ -94,12 +105,18 @@ namespace GestorDocumentoApp.Controllers
             try
             {
                 var userId = GetCurrentUserId();
+                var editableProjectIds = _scmDocumentContext.Projects
+                    .Where(x => x.UserId == userId || x.Members.Any(m =>
+                        m.UserId == userId &&
+                        m.Active &&
+                        (m.CanEdit || m.Role == ProjectMemberRole.Owner || m.Role == ProjectMemberRole.Maintainer || m.Role == ProjectMemberRole.Developer)))
+                    .Select(x => x.Id);
                 if (!ModelState.IsValid)
                 {
 
                     var elementTypes = await _scmDocumentContext.ElementTypes.AsNoTracking().OrderBy(elementType => elementType.Name).ToListAsync();
                     var projects = await _scmDocumentContext.Projects.AsNoTracking()
-                        .Where(x => x.UserId == userId)
+                        .Where(x => editableProjectIds.Contains(x.Id))
                         .OrderBy(x => x.Name).ToListAsync();
 
                     elementVM.ElementTypes = elementTypes.Select(elementType => new SelectListItem { Text = elementType.Name, Value = elementType.Id.ToString() });
@@ -112,7 +129,7 @@ namespace GestorDocumentoApp.Controllers
                     ModelState.AddModelError(nameof(elementVM.ProjectId), "Proyecto es requerido.");
                     var elementTypes = await _scmDocumentContext.ElementTypes.AsNoTracking().OrderBy(elementType => elementType.Name).ToListAsync();
                     var projects = await _scmDocumentContext.Projects.AsNoTracking()
-                        .Where(x => x.UserId == userId)
+                        .Where(x => editableProjectIds.Contains(x.Id))
                         .OrderBy(x => x.Name).ToListAsync();
                     elementVM.ElementTypes = elementTypes.Select(elementType => new SelectListItem { Text = elementType.Name, Value = elementType.Id.ToString() });
                     elementVM.Projects = projects.Select(x => new SelectListItem { Text = x.Name, Value = x.Id.ToString() });
@@ -120,7 +137,7 @@ namespace GestorDocumentoApp.Controllers
                 }
 
                 var selectedProject = await _scmDocumentContext.Projects.AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.Id == elementVM.ProjectId && x.UserId == userId);
+                    .FirstOrDefaultAsync(x => x.Id == elementVM.ProjectId && editableProjectIds.Contains(x.Id));
                 if (selectedProject is null)
                 {
                     return Forbid();
@@ -155,8 +172,14 @@ namespace GestorDocumentoApp.Controllers
         public async Task<IActionResult> Edit([FromRoute] int id)
         {
             var userId = GetCurrentUserId();
+            var editableProjectIds = _scmDocumentContext.Projects
+                .Where(x => x.UserId == userId || x.Members.Any(m =>
+                    m.UserId == userId &&
+                    m.Active &&
+                    (m.CanEdit || m.Role == ProjectMemberRole.Owner || m.Role == ProjectMemberRole.Maintainer || m.Role == ProjectMemberRole.Developer)))
+                .Select(x => x.Id);
             var element = await _scmDocumentContext.Elements
-                .FirstOrDefaultAsync(x => x.Id == id && x.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == id && (x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active)));
 
             if (element is null)
             {
@@ -166,7 +189,7 @@ namespace GestorDocumentoApp.Controllers
             var elementTypes = await _scmDocumentContext.ElementTypes.AsNoTracking().OrderBy(element => element.Name).ToListAsync();
 
             var projects = await _scmDocumentContext.Projects.AsNoTracking()
-                .Where(x => x.UserId == userId)
+                .Where(x => editableProjectIds.Contains(x.Id))
                 .OrderBy(x => x.Name).ToListAsync();
 
             return View(
@@ -193,9 +216,15 @@ namespace GestorDocumentoApp.Controllers
             try
             {
                 var userId = GetCurrentUserId();
+                var editableProjectIds = _scmDocumentContext.Projects
+                    .Where(x => x.UserId == userId || x.Members.Any(m =>
+                        m.UserId == userId &&
+                        m.Active &&
+                        (m.CanEdit || m.Role == ProjectMemberRole.Owner || m.Role == ProjectMemberRole.Maintainer || m.Role == ProjectMemberRole.Developer)))
+                    .Select(x => x.Id);
 
                 var element = await _scmDocumentContext.Elements
-                    .FirstOrDefaultAsync(x => x.Id == id && x.Project.UserId == userId);
+                    .FirstOrDefaultAsync(x => x.Id == id && (x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active)));
 
                 if (element is null)
                 {
@@ -206,7 +235,7 @@ namespace GestorDocumentoApp.Controllers
                 {
                     var elementTypes = await _scmDocumentContext.ElementTypes.OrderBy(elementType => elementType.Name).ToListAsync();
                     var projects = await _scmDocumentContext.Projects.AsNoTracking()
-                        .Where(x => x.UserId == userId)
+                        .Where(x => editableProjectIds.Contains(x.Id))
                         .OrderBy(x => x.Name).ToListAsync();
 
                     elementVM.ElementTypes = elementTypes.Select(elementType => new SelectListItem { Text = elementType.Name, Value = elementType.Id.ToString() });
@@ -219,7 +248,7 @@ namespace GestorDocumentoApp.Controllers
                     ModelState.AddModelError(nameof(elementVM.ProjectId), "Proyecto es requerido.");
                     var elementTypes = await _scmDocumentContext.ElementTypes.OrderBy(elementType => elementType.Name).ToListAsync();
                     var projects = await _scmDocumentContext.Projects.AsNoTracking()
-                        .Where(x => x.UserId == userId)
+                        .Where(x => editableProjectIds.Contains(x.Id))
                         .OrderBy(x => x.Name).ToListAsync();
                     elementVM.ElementTypes = elementTypes.Select(elementType => new SelectListItem { Text = elementType.Name, Value = elementType.Id.ToString() });
                     elementVM.Projects = projects.Select(x => new SelectListItem { Text = x.Name, Value = x.Id.ToString() });
@@ -227,7 +256,7 @@ namespace GestorDocumentoApp.Controllers
                 }
 
                 var selectedProject = await _scmDocumentContext.Projects.AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.Id == elementVM.ProjectId && x.UserId == userId);
+                    .FirstOrDefaultAsync(x => x.Id == elementVM.ProjectId && editableProjectIds.Contains(x.Id));
                 if (selectedProject is null)
                 {
                     return Forbid();
@@ -260,7 +289,12 @@ namespace GestorDocumentoApp.Controllers
             {
                 var userId = GetCurrentUserId();
                 var element = await _scmDocumentContext.Elements
-                    .FirstOrDefaultAsync(x => x.Id == id && x.Project.UserId == userId);
+                    .FirstOrDefaultAsync(x =>
+                        x.Id == id &&
+                        (x.Project.UserId == userId || x.Project.Members.Any(m =>
+                            m.UserId == userId &&
+                            m.Active &&
+                            (m.CanEdit || m.Role == ProjectMemberRole.Owner || m.Role == ProjectMemberRole.Maintainer || m.Role == ProjectMemberRole.Developer))));
 
                 if (element is null)
                 {

@@ -67,7 +67,8 @@ namespace GestorDocumentoApp.Controllers.Api
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
             var changeRequest = await _context.ChangeRequests
                 .Include(x => x.Element)
-                .FirstOrDefaultAsync(x => x.Id == request.ChangeRequestId && x.Element.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == request.ChangeRequestId &&
+                    (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
             if (changeRequest is null)
             {
                 return NotFound();
@@ -87,7 +88,8 @@ namespace GestorDocumentoApp.Controllers.Api
             if (request.VersionId.HasValue)
             {
                 var versionBelongsToChangeRequest = await _context.Versions
-                    .AnyAsync(x => x.Id == request.VersionId.Value && x.ChangeRequestId == request.ChangeRequestId && x.Element.Project.UserId == userId);
+                    .AnyAsync(x => x.Id == request.VersionId.Value && x.ChangeRequestId == request.ChangeRequestId &&
+                        (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
                 if (!versionBelongsToChangeRequest)
                 {
                     return BadRequest("Version does not belong to the target change request.");
@@ -132,7 +134,8 @@ namespace GestorDocumentoApp.Controllers.Api
             var trace = await _context.GitTraceLinks
                 .Include(x => x.ChangeRequest)
                 .ThenInclude(x => x.Element)
-                .FirstOrDefaultAsync(x => x.Id == traceId && x.ChangeRequest.Element.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == traceId &&
+                    (x.ChangeRequest.Element.Project.UserId == userId || x.ChangeRequest.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
             if (trace is null)
             {
                 return NotFound();
@@ -152,7 +155,8 @@ namespace GestorDocumentoApp.Controllers.Api
             var targetChangeRequestId = request.ChangeRequestId <= 0 ? trace.ChangeRequestId : request.ChangeRequestId;
             var changeRequest = await _context.ChangeRequests
                 .Include(x => x.Element)
-                .FirstOrDefaultAsync(x => x.Id == targetChangeRequestId && x.Element.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == targetChangeRequestId &&
+                    (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
             if (changeRequest is null)
             {
                 return NotFound("Target change request was not found.");
@@ -161,7 +165,8 @@ namespace GestorDocumentoApp.Controllers.Api
             if (request.VersionId.HasValue)
             {
                 var versionBelongsToChangeRequest = await _context.Versions
-                    .AnyAsync(x => x.Id == request.VersionId.Value && x.ChangeRequestId == targetChangeRequestId && x.Element.Project.UserId == userId);
+                    .AnyAsync(x => x.Id == request.VersionId.Value && x.ChangeRequestId == targetChangeRequestId &&
+                        (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
                 if (!versionBelongsToChangeRequest)
                 {
                     return BadRequest("Version does not belong to the target change request.");
@@ -197,7 +202,8 @@ namespace GestorDocumentoApp.Controllers.Api
             var trace = await _context.GitTraceLinks
                 .Include(x => x.ChangeRequest)
                 .ThenInclude(x => x.Element)
-                .FirstOrDefaultAsync(x => x.Id == traceId && x.ChangeRequest.Element.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == traceId &&
+                    (x.ChangeRequest.Element.Project.UserId == userId || x.ChangeRequest.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
             if (trace is null)
             {
                 return NotFound();

@@ -45,6 +45,7 @@
                 <label asp-for="ElementUrl" class="text-sm/6 block font-medium text-gray-900">ElementUrl</label>
                 <div class="mt-2">
                     <textarea asp-for="ElementUrl" rows="2" class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600 sm:text-sm/6"></textarea>
+                    <p class="mt-1 text-xs text-gray-500">Pega aqui el enlace del documento o artefacto versionado (Drive, SharePoint, Git, etc.).</p>
                 </div>
             </div>
             <span asp-validation-for="ElementUrl" class="text-red-500"></span>
@@ -55,6 +56,7 @@
                 <label asp-for="ToolUrl" class="text-sm/6 block font-medium text-gray-900">ToolUrl</label>
                 <div class="mt-2">
                     <textarea asp-for="ToolUrl" rows="2" class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600 sm:text-sm/6"></textarea>
+                    <p class="mt-1 text-xs text-gray-500">Opcional: enlace a herramienta de soporte (ticket, tablero, PR o evidencia tecnica: Jira, GitHub, Drive, etc.).</p>
                 </div>
             </div>
         </div>
@@ -79,6 +81,7 @@
                     <label asp-form="VersionCode" class="text-sm/6 block font-medium text-gray-900">Codigo de version</label>
                     <div class="mt-2">
                         <input type="text" asp-for="VersionCode" autocomplete="given-name" class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600 sm:text-sm/6" />
+                        <p class="mt-1 text-xs text-gray-500">Sugerido automaticamente con formato DOC-REQ-datetime-001. Puedes editarlo si lo necesitas.</p>
                     </div>
                 </div>
                 <span asp-validation-for="VersionCode" class="text-red-500"></span>

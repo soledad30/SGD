@@ -3,6 +3,7 @@ using System;
 using GestorDocumentoApp.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GestorDocumentoApp.Migrations
 {
     [DbContext(typeof(ScmDocumentContext))]
-    partial class ScmDocumentContextModelSnapshot : ModelSnapshot
+    [Migration("20260426055052_AddProjectMembers")]
+    partial class AddProjectMembers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

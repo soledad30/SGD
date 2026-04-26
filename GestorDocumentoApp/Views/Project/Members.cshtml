@@ -1,0 +1,156 @@
+@using GestorDocumentoApp.Models
+@model ProjectMembersVM
+
+@{
+    ViewData["Title"] = "Miembros del proyecto";
+}
+
+@await Html.PartialAsync("_HeaderTitle", new HeaderTitle { Title = "Miembros: " + Model.ProjectName, Subtitle = "Gestion de colaboracion por proyecto" })
+
+@if (TempData["Message"] is string message && !string.IsNullOrWhiteSpace(message))
+{
+    var messageType = (TempData["MessageType"]?.ToString() ?? "info").ToLowerInvariant();
+    var messageClasses = messageType switch
+    {
+        "success" => "bg-green-100 text-green-800",
+        "warning" => "bg-amber-100 text-amber-800",
+        "error" => "bg-red-100 text-red-800",
+        _ => "bg-blue-100 text-blue-800"
+    };
+
+    <p class="mt-4 rounded px-3 py-2 text-sm @messageClasses">@message</p>
+}
+
+<div class="mt-5 rounded-lg bg-white p-5 shadow">
+    <h2 class="text-lg font-semibold text-gray-900">Agregar miembro</h2>
+    <form asp-action="AddMember" method="post" class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-6">
+        <input type="hidden" name="ProjectId" value="@Model.ProjectId" />
+        <div class="md:col-span-2">
+            <label class="mb-2 block text-sm font-medium text-gray-900">Email</label>
+            <input name="Email" type="email" required list="member-email-options"
+                   class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-600 focus:ring-blue-600" />
+            <datalist id="member-email-options">
+                @foreach (var email in Model.AvailableUserEmails)
+                {
+                    <option value="@email"></option>
+                }
+            </datalist>
+            <p class="mt-1 text-xs text-gray-500">Tip: escribe y selecciona un correo sugerido.</p>
+        </div>
+        <div>
+            <label class="mb-2 block text-sm font-medium text-gray-900">Rol</label>
+            <select name="Role" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-600 focus:ring-blue-600">
+                @foreach (var role in Enum.GetValues<ProjectMemberRole>())
+                {
+                    <option value="@((int)role)">@role</option>
+                }
+            </select>
+        </div>
+        <div class="flex items-center gap-2">
+            <input id="canEdit" name="CanEdit" type="checkbox" value="true" class="h-4 w-4 rounded border-gray-300 text-blue-700 focus:ring-blue-600" />
+            <label for="canEdit" class="text-sm text-gray-900">Puede editar</label>
+        </div>
+        <div class="flex items-center gap-2">
+            <input id="canApprove" name="CanApprove" type="checkbox" value="true" class="h-4 w-4 rounded border-gray-300 text-blue-700 focus:ring-blue-600" />
+            <label for="canApprove" class="text-sm text-gray-900">Puede aprobar</label>
+        </div>
+        <div>
+            <button type="submit"
+                    class="inline-flex min-h-10 items-center justify-center rounded-lg px-5 py-2 text-sm font-semibold text-white hover:bg-blue-800"
+                    style="background-color:#1d4ed8;color:#ffffff;border:1px solid #1e40af;">
+                Agregar
+            </button>
+        </div>
+    </form>
+</div>
+
+<div class="mt-6 rounded-lg bg-white p-5 shadow">
+    <h2 class="text-lg font-semibold text-gray-900">Miembros actuales</h2>
+    <div class="mt-4 overflow-x-auto">
+        <table class="min-w-full border-collapse">
+            <thead>
+                <tr class="border-b border-gray-200 bg-gray-100">
+                    <th class="px-3 py-2 text-left text-sm font-medium text-gray-700">Email</th>
+                    <th class="px-3 py-2 text-left text-sm font-medium text-gray-700">Rol</th>
+                    <th class="px-3 py-2 text-left text-sm font-medium text-gray-700">Permisos</th>
+                    <th class="px-3 py-2 text-left text-sm font-medium text-gray-700">Activo</th>
+                    <th class="px-3 py-2 text-left text-sm font-medium text-gray-700">Accion</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var member in Model.Members)
+                {
+                    <tr class="border-b border-gray-100">
+                        <td class="px-3 py-2 text-sm text-gray-800">@member.Email</td>
+                        <td class="px-3 py-2 text-sm text-gray-800">@member.Role</td>
+                        <td class="px-3 py-2 text-sm text-gray-800">
+                            @(member.CanEdit ? "Editar " : "")
+                            @(member.CanApprove ? "Aprobar" : "")
+                        </td>
+                        <td class="px-3 py-2 text-sm text-gray-800">@(member.Active ? "Si" : "No")</td>
+                        <td class="px-3 py-2 text-sm text-gray-800">
+                            <form asp-action="UpdateMember" method="post" class="flex flex-wrap items-center gap-2">
+                                <input type="hidden" name="ProjectId" value="@Model.ProjectId" />
+                                <input type="hidden" name="MemberId" value="@member.Id" />
+                                <select name="Role" class="rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900">
+                                    @foreach (var role in Enum.GetValues<ProjectMemberRole>())
+                                    {
+                                        if (role == member.Role)
+                                        {
+                                            <option value="@((int)role)" selected>@role</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@((int)role)">@role</option>
+                                        }
+                                    }
+                                </select>
+                                <label class="flex items-center gap-1 text-xs text-gray-700">
+                                    @if (member.CanEdit)
+                                    {
+                                        <input type="checkbox" name="CanEdit" value="true" checked /> <text>Editar</text>
+                                    }
+                                    else
+                                    {
+                                        <input type="checkbox" name="CanEdit" value="true" /> <text>Editar</text>
+                                    }
+                                </label>
+                                <label class="flex items-center gap-1 text-xs text-gray-700">
+                                    @if (member.CanApprove)
+                                    {
+                                        <input type="checkbox" name="CanApprove" value="true" checked /> <text>Aprobar</text>
+                                    }
+                                    else
+                                    {
+                                        <input type="checkbox" name="CanApprove" value="true" /> <text>Aprobar</text>
+                                    }
+                                </label>
+                                <label class="flex items-center gap-1 text-xs text-gray-700">
+                                    @if (member.Active)
+                                    {
+                                        <input type="checkbox" name="Active" value="true" checked /> <text>Activo</text>
+                                    }
+                                    else
+                                    {
+                                        <input type="checkbox" name="Active" value="true" /> <text>Activo</text>
+                                    }
+                                </label>
+                                <button type="submit"
+                                        class="inline-flex min-h-9 items-center justify-center rounded-lg px-3 py-1 text-xs font-semibold text-white hover:bg-indigo-800"
+                                        style="background-color:#4338ca;color:#ffffff;border:1px solid #3730a3;">
+                                    Guardar
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="mt-5">
+    <a asp-action="Show" asp-route-id="@Model.ProjectId" class="rounded-lg bg-gray-700 px-5 py-2 text-sm font-medium text-white hover:bg-gray-800">
+        Volver al proyecto
+    </a>
+</div>

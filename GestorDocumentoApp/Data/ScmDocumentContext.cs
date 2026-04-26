@@ -28,12 +28,29 @@ namespace GestorDocumentoApp.Data
         public DbSet<ChangeRequestAudit> ChangeRequestAudits { get; set; }
         public DbSet<GitTraceLink> GitTraceLinks { get; set; }
         public DbSet<Notification> Notifications { get; set; }
+        public DbSet<ProjectMember> ProjectMembers { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
 
             builder.Entity<Notification>()
+                .HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<ProjectMember>()
+                .HasIndex(x => new { x.ProjectId, x.UserId })
+                .IsUnique();
+
+            builder.Entity<ProjectMember>()
+                .HasOne(x => x.Project)
+                .WithMany(x => x.Members)
+                .HasForeignKey(x => x.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<ProjectMember>()
                 .HasOne(x => x.User)
                 .WithMany()
                 .HasForeignKey(x => x.UserId)

@@ -37,7 +37,7 @@ namespace GestorDocumentoApp.Controllers
                 var changeSummary = await _scmDocumentContext.ChangeRequests
                     .Include(cr => cr.Element)
                     .ThenInclude(e => e.Project)
-                    .Where(cr => cr.Element.Project.UserId == userId)
+                    .Where(cr => cr.Element.Project.UserId == userId || cr.Element.Project.Members.Any(m => m.UserId == userId && m.Active))
                     .GroupBy(cr => new { cr.Element.Project.Name, cr.Status })
                     .Select(g => new ChangeRequestSummaryVM
                     {
@@ -48,7 +48,7 @@ namespace GestorDocumentoApp.Controllers
                     .ToListAsync();
 
                 var projectConfigs = await _scmDocumentContext.Projects
-                    .Where(p => p.UserId == userId)
+                    .Where(p => p.UserId == userId || p.Members.Any(m => m.UserId == userId && m.Active))
                     .SelectMany(p => p.Elements.Select(e => new ProjectConfigurationVM
                     {
                         ProjectName = p.Name,
@@ -70,7 +70,7 @@ namespace GestorDocumentoApp.Controllers
 
                 var userChangeRequests = await _scmDocumentContext.ChangeRequests
                     .Include(cr => cr.Element)
-                    .Where(cr => cr.Element.Project.UserId == userId)
+                    .Where(cr => cr.Element.Project.UserId == userId || cr.Element.Project.Members.Any(m => m.UserId == userId && m.Active))
                     .AsNoTracking()
                     .ToListAsync();
 

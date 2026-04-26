@@ -35,7 +35,9 @@ namespace GestorDocumentoApp.Controllers
             var userId = GetCurrentUserId();
             var element = await _scmDocumentContext.Elements.Include(x => x.Versions.OrderByDescending(x => x.UploadDate))
                 .ThenInclude(x => x.ParentVersion!)
-                .ThenInclude(x => x.RequirementType).FirstOrDefaultAsync(x => x.Id == elementId && x.Project.UserId == userId);
+                .ThenInclude(x => x.RequirementType).FirstOrDefaultAsync(x =>
+                    x.Id == elementId &&
+                    (x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active)));
 
             if (element == null)
             {
@@ -62,7 +64,8 @@ namespace GestorDocumentoApp.Controllers
                 .AsNoTracking()
                 .Include(x => x.RequirementType)
                 .Include(x => x.ChangeRequest)
-                .Where(x => x.ElementId == elementId && x.Element.Project.UserId == userId)
+                .Where(x => x.ElementId == elementId &&
+                    (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)))
                 .Where(x => x.Id == sourceVersionId || x.Id == targetVersionId)
                 .ToListAsync();
 
@@ -75,7 +78,7 @@ namespace GestorDocumentoApp.Controllers
 
             var elementName = await _scmDocumentContext.Elements
                 .AsNoTracking()
-                .Where(x => x.Id == elementId && x.Project.UserId == userId)
+                .Where(x => x.Id == elementId && (x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active)))
                 .Select(x => x.Name)
                 .FirstOrDefaultAsync();
             if (elementName is null)
@@ -99,7 +102,7 @@ namespace GestorDocumentoApp.Controllers
         {
             var userId = GetCurrentUserId();
             var element = await _scmDocumentContext.Elements
-                .FirstOrDefaultAsync(x => x.Id == elementId && x.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == elementId && (x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active)));
 
             if (element is null)
             {
@@ -122,6 +125,7 @@ namespace GestorDocumentoApp.Controllers
             {
                 ElementName = element.Name,
                 ElementId = element.Id,
+                VersionCode = await GenerateSuggestedVersionCodeAsync(),
                 RequirementTypes = requirementTypes.Select(r => new SelectListItem { Text = r.Name, Value = r.Id.ToString() }),
                 PreviousVersions = versions.Select(v => new SelectListItem { Text = v.VersionCode + " | " + v.Id, Value = v.Id.ToString() }),
                 ChangeRequests = changeRequests.Select(x => new SelectListItem { Text = x.Code, Value = x.Id.ToString() }),
@@ -144,12 +148,19 @@ namespace GestorDocumentoApp.Controllers
             {
                 var userId = GetCurrentUserId();
                 var element = await _scmDocumentContext.Elements
-                    .FirstOrDefaultAsync(x => x.Id == elementId && x.Project.UserId == userId);
+                    .FirstOrDefaultAsync(x => x.Id == elementId && (x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active)));
 
                 if (element is null)
                 {
                     return NotFound();
                 }
+
+                if (string.IsNullOrWhiteSpace(versionVM.VersionCode))
+                {
+                    versionVM.VersionCode = await GenerateSuggestedVersionCodeAsync();
+                    ModelState.Remove(nameof(versionVM.VersionCode));
+                }
+                versionVM.VersionCode = versionVM.VersionCode.Trim();
 
                 if (!ModelState.IsValid)
                 {
@@ -206,7 +217,7 @@ namespace GestorDocumentoApp.Controllers
         {
             var userId = GetCurrentUserId();
             var version = await _scmDocumentContext.Versions
-                .FirstOrDefaultAsync(x => x.Id == id && x.Element.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
 
             if (version is null)
             {
@@ -245,7 +256,7 @@ namespace GestorDocumentoApp.Controllers
             {
                 var userId = GetCurrentUserId();
                 var version = await _scmDocumentContext.Versions
-                    .FirstOrDefaultAsync(x => x.Id == id && x.Element.Project.UserId == userId);
+                    .FirstOrDefaultAsync(x => x.Id == id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
 
                 if (version is null)
                 {
@@ -303,7 +314,7 @@ namespace GestorDocumentoApp.Controllers
             {
                 var userId = GetCurrentUserId();
                 var version = await _scmDocumentContext.Versions
-                    .FirstOrDefaultAsync(x => x.Id == id && x.Element.Project.UserId == userId);
+                    .FirstOrDefaultAsync(x => x.Id == id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
 
                 if (version is null)
                 {
@@ -328,7 +339,7 @@ namespace GestorDocumentoApp.Controllers
         {
             var userId = GetCurrentUserId();
             var version = await _scmDocumentContext.Versions.Include(x=>x.ChangeRequest)
-                .Where(x=>x.Id==id && x.Element.Project.UserId == userId).FirstOrDefaultAsync();
+                .Where(x=>x.Id==id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active))).FirstOrDefaultAsync();
             if (version is null)
             {
                 TempData["Message"] = "No existe la version.";
@@ -382,7 +393,7 @@ namespace GestorDocumentoApp.Controllers
         {
             var userId = GetCurrentUserId();
             var version = await _scmDocumentContext.Versions
-                .Where(x => x.Id == id && x.Element.Project.UserId == userId).FirstOrDefaultAsync();
+                .Where(x => x.Id == id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active))).FirstOrDefaultAsync();
 
             if (version is null)
             {
@@ -443,7 +454,7 @@ namespace GestorDocumentoApp.Controllers
             var userId = GetCurrentUserId();
 
             var version = await _scmDocumentContext.Versions.Include(x => x.ParentVersion)
-                .Where(x => x.Id == id && x.Element.Project.UserId == userId).FirstOrDefaultAsync();
+                .Where(x => x.Id == id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active))).FirstOrDefaultAsync();
             if (version is null)
             {
                 return NotFound();
@@ -501,10 +512,10 @@ namespace GestorDocumentoApp.Controllers
             var changeRequests = await _scmDocumentContext.ChangeRequests.
                 Where(x => x.ElementId == vm.ElementId).
                 Where(x => x.Action == ActionCR.Approved).
-                Where(x => x.Element.Project.UserId == userId).ToListAsync();
+                Where(x => x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)).ToListAsync();
 
             var elementBelongsToUser = await _scmDocumentContext.Elements
-                .AnyAsync(x => x.Id == vm.ElementId && x.Project.UserId == userId);
+                .AnyAsync(x => x.Id == vm.ElementId && (x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active)));
             if (!elementBelongsToUser)
             {
                 vm.RequirementTypes = [];
@@ -525,6 +536,16 @@ namespace GestorDocumentoApp.Controllers
                     new SelectListItem { Value="5",Text="Prueba"},
                     new SelectListItem { Value="6",Text="Mantenimiento"},
                 };
+        }
+
+        private async Task<string> GenerateSuggestedVersionCodeAsync()
+        {
+            var timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+            var prefix = $"DOC-REQ-{timestamp}-";
+            var count = await _scmDocumentContext.Versions
+                .AsNoTracking()
+                .CountAsync(x => x.VersionCode.StartsWith(prefix));
+            return $"{prefix}{(count + 1):000}";
         }
 
         private string GetCurrentUserId()
