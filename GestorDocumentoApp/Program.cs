@@ -39,6 +39,7 @@ builder.Services.AddControllersWithViews(options =>
 });
 builder.Services.AddScoped<GithubService>();
 builder.Services.AddScoped<ChangeRequestLifecycleService>();
+builder.Services.AddScoped<ProjectAccessService>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>

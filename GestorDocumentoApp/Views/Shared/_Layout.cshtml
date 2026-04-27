@@ -3,16 +3,18 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - GestorDocumentoApp</title>
+    <title>@ViewData["Title"] - NexoDocs SCM</title>
     <script type="importmap"></script>
+    <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/uicons-regular-rounded/css/uicons-regular-rounded.css" />
     <link rel="stylesheet" href="~/css/output.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/custom.css" asp-append-version="true" />
 </head>
-<body class="mx-auto h-screen max-w-7xl">
+<body class="app-shell mx-auto min-h-screen max-w-7xl antialiased">
     <header>
         <partial name="_Navbar"/>
     </header>
 
-    <div class="mx-8 flex flex-col">
+    <div class="mx-8 flex flex-col pb-10">
         <main>
             @RenderBody()
         </main>

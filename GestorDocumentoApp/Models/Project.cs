@@ -14,6 +14,7 @@ namespace GestorDocumentoApp.Models
         public IdentityUser User { get; set; } = null!;
 
         public List<Element> Elements { get; set; } = [];
+        public List<ProjectMember> Members { get; set; } = [];
 
     }
 }

@@ -5,11 +5,7 @@
             x-on:click="openNotifications = !openNotifications"
             class="relative rounded-full p-1 text-gray-700 hover:bg-gray-100 focus:outline-none"
             title="Notificaciones">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-             stroke-width="1.5" stroke="currentColor" class="h-7 w-7">
-            <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9a6 6 0 00-12 0v.05-.001v.701a8.967 8.967 0 01-2.312 6.022 23.848 23.848 0 005.454 1.31m5.715 0a24.255 24.255 0 01-5.715 0m5.715 0a3 3 0 11-5.715 0" />
-        </svg>
+        <i class="fi fi-rr-bell flex h-7 w-7 items-center justify-center text-xl" aria-hidden="true"></i>
         @if (Model.UnreadCount > 0)
         {
             <span class="absolute -top-1 -right-1 inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-semibold text-white">
@@ -21,32 +17,32 @@
     <div x-show="openNotifications"
          x-on:click.outside="openNotifications = false"
          x-transition
-         class="absolute right-0 top-10 z-20 w-80 rounded-lg bg-white shadow-lg ring-1 ring-gray-100">
-        <div class="border-b border-gray-100 px-4 py-3">
-            <p class="text-sm font-semibold text-gray-900">Notificaciones</p>
+         class="absolute right-1 top-10 z-20 w-[22rem] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-xl border border-indigo-100 bg-white shadow-xl ring-1 ring-indigo-100 sm:right-0 sm:w-96">
+        <div class="border-b border-indigo-100 bg-indigo-50/60 px-4 py-3">
+            <p class="text-sm font-semibold text-indigo-900">Notificaciones</p>
             <p class="text-xs text-gray-500">No leidas: @Model.UnreadCount</p>
         </div>
-        <div class="max-h-80 overflow-y-auto">
+        <div class="max-h-72 overflow-y-auto">
             @if (!Model.Latest.Any())
             {
-                <p class="px-4 py-3 text-sm text-gray-500">No tienes notificaciones.</p>
+                <p class="px-4 py-3 text-sm text-gray-500">No tienes notificaciones no leidas.</p>
             }
             else
             {
                 @foreach (var item in Model.Latest)
                 {
                     <a href="@(string.IsNullOrWhiteSpace(item.Link) ? Url.Action("Index", "Notification") : item.Link)"
-                       class="block border-b border-gray-50 px-4 py-3 hover:bg-gray-50 @(item.IsRead ? "" : "bg-blue-50")">
-                        <p class="text-sm font-semibold text-gray-900">@item.Title</p>
-                        <p class="mt-1 line-clamp-2 text-xs text-gray-700">@item.Message</p>
-                        <p class="mt-1 text-xs text-gray-500">@item.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</p>
+                       class="block border-b border-indigo-50 px-4 py-2.5 transition hover:bg-indigo-50/50 @(item.IsRead ? "" : "bg-indigo-50/70")">
+                        <p class="text-sm font-semibold text-gray-900 break-words">@item.Title</p>
+                        <p class="mt-1 text-xs text-gray-700 break-words">@item.Message</p>
+                        <p class="mt-1 text-[11px] text-gray-500">@item.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</p>
                     </a>
                 }
             }
         </div>
-        <div class="px-4 py-3">
+        <div class="px-4 py-2.5">
             <a asp-controller="Notification" asp-action="Index"
-               class="text-sm font-medium text-blue-700 hover:text-blue-900">
+               class="inline-flex w-full items-center justify-center rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-700">
                 Ver todas
             </a>
         </div>

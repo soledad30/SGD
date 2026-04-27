@@ -52,6 +52,7 @@ namespace GestorDocumentoApp.Data
 
             await SeedCatalogsAsync(context);
             await SeedSampleProjectDataAsync(context, adminUser.Id);
+            await EnsureProjectOwnersAsMembersAsync(context);
             await SeedSampleNotificationsAsync(context, adminUser.Id);
         }
 
@@ -254,6 +255,50 @@ namespace GestorDocumentoApp.Data
                     CreatedAt = now.AddHours(-20)
                 });
 
+            await context.SaveChangesAsync();
+        }
+
+        private static async Task EnsureProjectOwnersAsMembersAsync(ScmDocumentContext context)
+        {
+            var projects = await context.Projects
+                .AsNoTracking()
+                .Select(x => new { x.Id, x.UserId })
+                .ToListAsync();
+
+            if (projects.Count == 0)
+            {
+                return;
+            }
+
+            var existingMemberships = await context.ProjectMembers
+                .AsNoTracking()
+                .Select(x => new { x.ProjectId, x.UserId })
+                .ToListAsync();
+
+            var existingLookup = new HashSet<string>(
+                existingMemberships.Select(x => $"{x.ProjectId}|{x.UserId}"));
+
+            var missingOwners = projects
+                .Where(x => !string.IsNullOrWhiteSpace(x.UserId))
+                .Where(x => !existingLookup.Contains($"{x.Id}|{x.UserId}"))
+                .Select(x => new ProjectMember
+                {
+                    ProjectId = x.Id,
+                    UserId = x.UserId,
+                    Role = ProjectMemberRole.Owner,
+                    CanEdit = true,
+                    CanApprove = true,
+                    JoinedAt = DateTime.UtcNow,
+                    Active = true
+                })
+                .ToList();
+
+            if (missingOwners.Count == 0)
+            {
+                return;
+            }
+
+            context.ProjectMembers.AddRange(missingOwners);
             await context.SaveChangesAsync();
         }
     }

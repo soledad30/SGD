@@ -65,6 +65,16 @@ namespace GestorDocumentoApp.Services
 
             owner = parts[0];
             name = parts[1];
+            if (name.EndsWith(".git", StringComparison.OrdinalIgnoreCase))
+            {
+                name = name[..^4];
+            }
+
+            if (string.IsNullOrWhiteSpace(owner) || string.IsNullOrWhiteSpace(name))
+            {
+                return false;
+            }
+
             return true;
         }
 
@@ -182,6 +192,44 @@ namespace GestorDocumentoApp.Services
             }
         }
 
+        public virtual async Task<GitHubCheckResult> CheckPullRequestAsync(string owner, string name, int number)
+        {
+            var cacheKey = $"gh:pr:{owner}/{name}:{number}".ToLowerInvariant();
+            if (_memoryCache.TryGetValue(cacheKey, out GitHubCheckResult? cached) && cached is not null)
+            {
+                return cached;
+            }
+
+            GitHubCheckResult result;
+            try
+            {
+                _ = await _client.PullRequest.Get(owner, name, number);
+                result = new GitHubCheckResult { Status = GitHubCheckStatus.Valid };
+            }
+            catch (NotFoundException)
+            {
+                result = new GitHubCheckResult { Status = GitHubCheckStatus.NotFound, Message = "Pull request not found." };
+            }
+            catch (RateLimitExceededException ex)
+            {
+                _logger.LogWarning(ex, "GitHub rate limit reached while checking pull request existence {Owner}/{Repo}#{Pr}", owner, name, number);
+                result = new GitHubCheckResult { Status = GitHubCheckStatus.Unavailable, Message = "GitHub rate limit reached." };
+            }
+            catch (AbuseException ex)
+            {
+                _logger.LogWarning(ex, "GitHub abuse limit hit while checking pull request existence {Owner}/{Repo}#{Pr}", owner, name, number);
+                result = new GitHubCheckResult { Status = GitHubCheckStatus.Unavailable, Message = "GitHub temporarily unavailable (abuse protection)." };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "GitHub unavailable while checking pull request existence {Owner}/{Repo}#{Pr}", owner, name, number);
+                result = new GitHubCheckResult { Status = GitHubCheckStatus.Unavailable, Message = "GitHub unavailable." };
+            }
+
+            CacheStableResult(cacheKey, result);
+            return result;
+        }
+
         public virtual async Task<bool> IsPullRequestMergedAsync(string owner, string name, int number)
         {
             var result = await CheckPullRequestMergedAsync(owner, name, number);
@@ -222,7 +270,7 @@ namespace GestorDocumentoApp.Services
                 result = new GitHubCheckResult { Status = GitHubCheckStatus.Unavailable, Message = "GitHub unavailable." };
             }
 
-            _memoryCache.Set(cacheKey, result, CacheTtl);
+            CacheStableResult(cacheKey, result);
             return result;
         }
 
@@ -245,6 +293,11 @@ namespace GestorDocumentoApp.Services
             {
                 result = new GitHubCheckResult { Status = GitHubCheckStatus.NotFound, Message = "Commit not found." };
             }
+            catch (ApiValidationException ex) when (ex.ApiError?.Message?.Contains("No commit found for SHA", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                _logger.LogInformation("Commit not found in GitHub {Owner}/{Repo}:{Sha}", owner, name, normalizedSha);
+                result = new GitHubCheckResult { Status = GitHubCheckStatus.NotFound, Message = "Commit not found." };
+            }
             catch (RateLimitExceededException ex)
             {
                 _logger.LogWarning(ex, "GitHub rate limit reached while checking commit {Owner}/{Repo}:{Sha}", owner, name, normalizedSha);
@@ -261,7 +314,7 @@ namespace GestorDocumentoApp.Services
                 result = new GitHubCheckResult { Status = GitHubCheckStatus.Unavailable, Message = "GitHub unavailable." };
             }
 
-            _memoryCache.Set(cacheKey, result, CacheTtl);
+            CacheStableResult(cacheKey, result);
             return result;
         }
 
@@ -301,8 +354,19 @@ namespace GestorDocumentoApp.Services
                 result = new GitHubCheckResult { Status = GitHubCheckStatus.Unavailable, Message = "GitHub unavailable." };
             }
 
-            _memoryCache.Set(cacheKey, result, CacheTtl);
+            CacheStableResult(cacheKey, result);
             return result;
+        }
+
+        private void CacheStableResult(string cacheKey, GitHubCheckResult result)
+        {
+            // Avoid caching transient external failures so retries can recover immediately.
+            if (result.Status == GitHubCheckStatus.Unavailable)
+            {
+                return;
+            }
+
+            _memoryCache.Set(cacheKey, result, CacheTtl);
         }
     }
 }

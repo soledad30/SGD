@@ -13,6 +13,7 @@ using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using System.Security.Claims;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace GestorDocumentoApp.Controllers
 {
@@ -68,7 +69,7 @@ namespace GestorDocumentoApp.Controllers
                 if (elementId.HasValue)
                 {
                     element = await _scmDocumentContext.Elements
-                        .FirstOrDefaultAsync(x => x.Id == elementId && x.Project.UserId == userId);
+                        .FirstOrDefaultAsync(x => x.Id == elementId && (x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active)));
                     if (element is null)
                     {
                         return NotFound();
@@ -77,7 +78,7 @@ namespace GestorDocumentoApp.Controllers
 
                 IQueryable<ChangeRequest> query = _scmDocumentContext.ChangeRequests
                     .Include(c => c.Element)
-                    .Where(c => c.Element.Project.UserId == userId);
+                    .Where(c => c.Element.Project.UserId == userId || c.Element.Project.Members.Any(m => m.UserId == userId && m.Active));
 
                 if (elementId.HasValue)
                 {
@@ -130,10 +131,10 @@ namespace GestorDocumentoApp.Controllers
                     .ToPagedListAsync(pageNumber, pageSize);
 
                 var elements = await _scmDocumentContext.Elements.Include(x => x.Project).AsNoTracking()
-                    .Where(x => x.Project.UserId == userId)
+                    .Where(x => x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active))
                     .OrderBy(x => x.Name).ToListAsync();
                 var projects = await _scmDocumentContext.Projects.AsNoTracking()
-                    .Where(x => x.UserId == userId)
+                    .Where(x => x.UserId == userId || x.Members.Any(m => m.UserId == userId && m.Active))
                     .OrderBy(x => x.Name)
                     .ToListAsync();
 
@@ -199,7 +200,7 @@ namespace GestorDocumentoApp.Controllers
             var userId = GetCurrentUserId();
             IQueryable<ChangeRequest> query = _scmDocumentContext.ChangeRequests
                 .Include(c => c.Element)
-                .Where(c => c.Element.Project.UserId == userId);
+                .Where(c => c.Element.Project.UserId == userId || c.Element.Project.Members.Any(m => m.UserId == userId && m.Active));
 
             if (elementId.HasValue)
             {
@@ -273,7 +274,7 @@ namespace GestorDocumentoApp.Controllers
         {
             var userId = GetCurrentUserId();
             var elements = await _scmDocumentContext.Elements.AsNoTracking().Include(x => x.Project)
-                .Where(x => x.Project.UserId == userId)
+                .Where(x => x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active))
                 .OrderBy(x => x.Name).ToListAsync();
             var changeVM = new ChangeRequestCreateVM
             {
@@ -281,6 +282,7 @@ namespace GestorDocumentoApp.Controllers
                 PriorityOptions = EnumHelper.GetSelectList<PriorityCR>(),
                 StatusOptions = EnumHelper.GetSelectList<StatusCR>(),
                 ActionOptions = EnumHelper.GetSelectList<ActionCR>(),
+                Code = await GenerateNextChangeRequestCodeAsync(),
                 Elements = elements.Select(x => new SelectListItem { Text = $"{x.Name} - {x.Project.Name}", Value = x.Id.ToString() })
 
             };
@@ -292,11 +294,17 @@ namespace GestorDocumentoApp.Controllers
         public async Task<IActionResult> Create(ChangeRequestCreateVM vm)
         {
             var userId = GetCurrentUserId();
+            if (string.IsNullOrWhiteSpace(vm.Code))
+            {
+                vm.Code = await GenerateNextChangeRequestCodeAsync();
+                ModelState.Remove(nameof(vm.Code));
+            }
+            vm.Code = vm.Code.Trim();
 
             if (!ModelState.IsValid)
             {
                 var elements = await _scmDocumentContext.Elements.AsNoTracking().Include(x => x.Project)
-                    .Where(x => x.Project.UserId == userId)
+                    .Where(x => x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active))
                     .OrderBy(x => x.Name).ToListAsync();
                 vm.ClasificationOptions = EnumHelper.GetSelectList<ClasificationTypeCR>();
                 vm.PriorityOptions = EnumHelper.GetSelectList<PriorityCR>();
@@ -306,11 +314,28 @@ namespace GestorDocumentoApp.Controllers
 
                 return View(vm);
             }
+
+            var existsCode = await _scmDocumentContext.ChangeRequests
+                .AnyAsync(x => x.Code == vm.Code);
+            if (existsCode)
+            {
+                ModelState.AddModelError(nameof(vm.Code), "El codigo ya existe. Usa otro o acepta el sugerido.");
+                vm.Code = await GenerateNextChangeRequestCodeAsync();
+                var elements = await _scmDocumentContext.Elements.AsNoTracking().Include(x => x.Project)
+                    .Where(x => x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active))
+                    .OrderBy(x => x.Name).ToListAsync();
+                vm.ClasificationOptions = EnumHelper.GetSelectList<ClasificationTypeCR>();
+                vm.PriorityOptions = EnumHelper.GetSelectList<PriorityCR>();
+                vm.StatusOptions = EnumHelper.GetSelectList<StatusCR>();
+                vm.ActionOptions = EnumHelper.GetSelectList<ActionCR>();
+                vm.Elements = elements.Select(x => new SelectListItem { Text = $"{x.Name} - {x.Project.Name}", Value = x.Id.ToString() });
+                return View(vm);
+            }
             if (vm.ElementId is null || vm.ClasificationType is null || vm.Priority is null || vm.Status is null)
             {
                 ModelState.AddModelError(string.Empty, "Debe completar los campos requeridos.");
                 var elements = await _scmDocumentContext.Elements.AsNoTracking().Include(x => x.Project)
-                    .Where(x => x.Project.UserId == userId)
+                    .Where(x => x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active))
                     .OrderBy(x => x.Name).ToListAsync();
                 vm.ClasificationOptions = EnumHelper.GetSelectList<ClasificationTypeCR>();
                 vm.PriorityOptions = EnumHelper.GetSelectList<PriorityCR>();
@@ -321,7 +346,7 @@ namespace GestorDocumentoApp.Controllers
             }
 
             var selectedElement = await _scmDocumentContext.Elements.AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == vm.ElementId && x.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == vm.ElementId && (x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active)));
             if (selectedElement is null)
             {
                 return Forbid();
@@ -331,7 +356,7 @@ namespace GestorDocumentoApp.Controllers
             {
                 ModelState.AddModelError(nameof(vm.Action), "Para baselinar, la accion debe ser Aprobado.");
                 var elements = await _scmDocumentContext.Elements.AsNoTracking().Include(x => x.Project)
-                    .Where(x => x.Project.UserId == userId)
+                    .Where(x => x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active))
                     .OrderBy(x => x.Name).ToListAsync();
                 vm.ClasificationOptions = EnumHelper.GetSelectList<ClasificationTypeCR>();
                 vm.PriorityOptions = EnumHelper.GetSelectList<PriorityCR>();
@@ -345,7 +370,7 @@ namespace GestorDocumentoApp.Controllers
             {
                 ModelState.AddModelError(nameof(vm.Status), "No puedes baselinar una CR nueva sin evidencia Git. Vincula commit o PR primero.");
                 var elements = await _scmDocumentContext.Elements.AsNoTracking().Include(x => x.Project)
-                    .Where(x => x.Project.UserId == userId)
+                    .Where(x => x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active))
                     .OrderBy(x => x.Name).ToListAsync();
                 vm.ClasificationOptions = EnumHelper.GetSelectList<ClasificationTypeCR>();
                 vm.PriorityOptions = EnumHelper.GetSelectList<PriorityCR>();
@@ -385,7 +410,7 @@ namespace GestorDocumentoApp.Controllers
             var userId = GetCurrentUserId();
             var changeRequest = await _scmDocumentContext.ChangeRequests
                 .Include(x => x.Element)
-                .FirstOrDefaultAsync(x => x.Id == id && x.Element.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
 
             if (changeRequest is null)
             {
@@ -395,7 +420,7 @@ namespace GestorDocumentoApp.Controllers
             if (!ModelState.IsValid)
             {
                 var elements = await _scmDocumentContext.Elements.AsNoTracking().Include(x => x.Project)
-                    .Where(x => x.Project.UserId == userId)
+                    .Where(x => x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active))
                     .OrderBy(x => x.Name).ToListAsync();
                 vm.ClasificationOptions = EnumHelper.GetSelectList<ClasificationTypeCR>();
                 vm.PriorityOptions = EnumHelper.GetSelectList<PriorityCR>();
@@ -409,7 +434,7 @@ namespace GestorDocumentoApp.Controllers
             {
                 ModelState.AddModelError(string.Empty, "Debe completar los campos requeridos.");
                 var elements = await _scmDocumentContext.Elements.AsNoTracking().Include(x => x.Project)
-                    .Where(x => x.Project.UserId == userId)
+                    .Where(x => x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active))
                     .OrderBy(x => x.Name).ToListAsync();
                 vm.ClasificationOptions = EnumHelper.GetSelectList<ClasificationTypeCR>();
                 vm.PriorityOptions = EnumHelper.GetSelectList<PriorityCR>();
@@ -420,7 +445,7 @@ namespace GestorDocumentoApp.Controllers
             }
 
             var selectedElement = await _scmDocumentContext.Elements.AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == vm.ElementId && x.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == vm.ElementId && (x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active)));
             if (selectedElement is null)
             {
                 return Forbid();
@@ -430,7 +455,7 @@ namespace GestorDocumentoApp.Controllers
             {
                 ModelState.AddModelError(nameof(vm.Status), "Transicion de estado no valida.");
                 var elements = await _scmDocumentContext.Elements.AsNoTracking().Include(x => x.Project)
-                    .Where(x => x.Project.UserId == userId)
+                    .Where(x => x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active))
                     .OrderBy(x => x.Name).ToListAsync();
                 vm.ClasificationOptions = EnumHelper.GetSelectList<ClasificationTypeCR>();
                 vm.PriorityOptions = EnumHelper.GetSelectList<PriorityCR>();
@@ -444,7 +469,7 @@ namespace GestorDocumentoApp.Controllers
             {
                 ModelState.AddModelError(nameof(vm.Action), "Para baselinar, la accion debe ser Aprobado.");
                 var elements = await _scmDocumentContext.Elements.AsNoTracking().Include(x => x.Project)
-                    .Where(x => x.Project.UserId == userId)
+                    .Where(x => x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active))
                     .OrderBy(x => x.Name).ToListAsync();
                 vm.ClasificationOptions = EnumHelper.GetSelectList<ClasificationTypeCR>();
                 vm.PriorityOptions = EnumHelper.GetSelectList<PriorityCR>();
@@ -461,7 +486,7 @@ namespace GestorDocumentoApp.Controllers
                 {
                     ModelState.AddModelError(nameof(vm.Status), baselineValidation.Message);
                     var elements = await _scmDocumentContext.Elements.AsNoTracking().Include(x => x.Project)
-                        .Where(x => x.Project.UserId == userId)
+                        .Where(x => x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active))
                         .OrderBy(x => x.Name).ToListAsync();
                     vm.ClasificationOptions = EnumHelper.GetSelectList<ClasificationTypeCR>();
                     vm.PriorityOptions = EnumHelper.GetSelectList<PriorityCR>();
@@ -502,7 +527,7 @@ namespace GestorDocumentoApp.Controllers
             var userId = GetCurrentUserId();
             var changeRequest = await _scmDocumentContext.ChangeRequests
                 .Include(x => x.Element)
-                .FirstOrDefaultAsync(x => x.Id == id && x.Element.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
 
             if (changeRequest is null)
             {
@@ -510,7 +535,7 @@ namespace GestorDocumentoApp.Controllers
             }
 
             var elements = await _scmDocumentContext.Elements.AsNoTracking().Include(x => x.Project)
-                .Where(x => x.Project.UserId == userId)
+                .Where(x => x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active))
                 .OrderBy(x => x.Name).ToListAsync();
 
             var vm = new ChangeRequestCreateVM
@@ -545,7 +570,7 @@ namespace GestorDocumentoApp.Controllers
         {
             var userId = GetCurrentUserId();
             var element = await _scmDocumentContext.Elements
-                .FirstOrDefaultAsync(x => x.Id == id && x.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == id && (x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active)));
 
             if (element == null)
             {
@@ -557,6 +582,7 @@ namespace GestorDocumentoApp.Controllers
             {
                 ElementId = id,
                 ElementName = element.Name,
+                Code = await GenerateNextChangeRequestCodeAsync(),
                 ClasificationOptions = EnumHelper.GetSelectList<ClasificationTypeCR>(),
                 PriorityOptions = EnumHelper.GetSelectList<PriorityCR>(),
                 StatusOptions = EnumHelper.GetSelectList<StatusCR>(),
@@ -572,12 +598,18 @@ namespace GestorDocumentoApp.Controllers
         {
             var userId = GetCurrentUserId();
             var element = await _scmDocumentContext.Elements
-                .FirstOrDefaultAsync(x => x.Id == id && x.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == id && (x.Project.UserId == userId || x.Project.Members.Any(m => m.UserId == userId && m.Active)));
 
             if (element == null)
             {
                 return NotFound();
             }
+
+            if (string.IsNullOrWhiteSpace(vm.Code))
+            {
+                vm.Code = await GenerateNextChangeRequestCodeAsync();
+            }
+            vm.Code = vm.Code.Trim();
 
             if (!ModelState.IsValid)
             {
@@ -588,6 +620,21 @@ namespace GestorDocumentoApp.Controllers
                 vm.ElementId = element.Id;
                 vm.ElementName = element.Name;
 
+                return View(vm);
+            }
+
+            var existsCode = await _scmDocumentContext.ChangeRequests
+                .AnyAsync(x => x.Code == vm.Code);
+            if (existsCode)
+            {
+                ModelState.AddModelError(nameof(vm.Code), "El codigo ya existe. Usa otro o acepta el sugerido.");
+                vm.Code = await GenerateNextChangeRequestCodeAsync();
+                vm.ClasificationOptions = EnumHelper.GetSelectList<ClasificationTypeCR>();
+                vm.PriorityOptions = EnumHelper.GetSelectList<PriorityCR>();
+                vm.StatusOptions = EnumHelper.GetSelectList<StatusCR>();
+                vm.ActionOptions = EnumHelper.GetSelectList<ActionCR>();
+                vm.ElementId = element.Id;
+                vm.ElementName = element.Name;
                 return View(vm);
             }
 
@@ -640,7 +687,7 @@ namespace GestorDocumentoApp.Controllers
             var userId = GetCurrentUserId();
             var changeRequest = await _scmDocumentContext.ChangeRequests
                 .Include(x => x.Element)
-                .FirstOrDefaultAsync(x => x.Id == id && x.Element.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
             if (changeRequest is null)
             {
                 return NotFound();
@@ -664,7 +711,7 @@ namespace GestorDocumentoApp.Controllers
 
             var versions = await _scmDocumentContext.Versions
                 .AsNoTracking()
-                .Where(x => x.ChangeRequestId == id && x.Element.Project.UserId == userId)
+                .Where(x => x.ChangeRequestId == id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)))
                 .OrderByDescending(x => x.UploadDate)
                 .Select(x => new ChangeRequestVersionTraceVM
                 {
@@ -726,7 +773,7 @@ namespace GestorDocumentoApp.Controllers
             var changeRequest = await _scmDocumentContext.ChangeRequests
                 .AsNoTracking()
                 .Include(x => x.Element)
-                .FirstOrDefaultAsync(x => x.Id == id && x.Element.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
             if (changeRequest is null)
             {
                 return NotFound();
@@ -734,7 +781,7 @@ namespace GestorDocumentoApp.Controllers
 
             var versions = await _scmDocumentContext.Versions
                 .AsNoTracking()
-                .Where(x => x.ChangeRequestId == id && x.Element.Project.UserId == userId)
+                .Where(x => x.ChangeRequestId == id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)))
                 .OrderByDescending(x => x.UploadDate)
                 .Select(x => new
                 {
@@ -793,7 +840,7 @@ namespace GestorDocumentoApp.Controllers
             var changeRequest = await _scmDocumentContext.ChangeRequests
                 .AsNoTracking()
                 .Include(x => x.Element)
-                .FirstOrDefaultAsync(x => x.Id == id && x.Element.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
             if (changeRequest is null)
             {
                 return NotFound();
@@ -807,7 +854,7 @@ namespace GestorDocumentoApp.Controllers
 
             var versionMap = await _scmDocumentContext.Versions
                 .AsNoTracking()
-                .Where(x => x.ChangeRequestId == id && x.Element.Project.UserId == userId)
+                .Where(x => x.ChangeRequestId == id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)))
                 .ToDictionaryAsync(x => x.Id, x => x);
 
             var builder = new StringBuilder();
@@ -850,7 +897,7 @@ namespace GestorDocumentoApp.Controllers
             var changeRequest = await _scmDocumentContext.ChangeRequests
                 .AsNoTracking()
                 .Include(x => x.Element)
-                .FirstOrDefaultAsync(x => x.Id == id && x.Element.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
             if (changeRequest is null)
             {
                 return NotFound();
@@ -906,7 +953,7 @@ namespace GestorDocumentoApp.Controllers
             var changeRequest = await _scmDocumentContext.ChangeRequests
                 .AsNoTracking()
                 .Include(x => x.Element)
-                .FirstOrDefaultAsync(x => x.Id == id && x.Element.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
             if (changeRequest is null)
             {
                 return NotFound();
@@ -944,7 +991,7 @@ namespace GestorDocumentoApp.Controllers
             var userId = GetCurrentUserId();
             var changeRequest = await _scmDocumentContext.ChangeRequests
                 .Include(x => x.Element)
-                .FirstOrDefaultAsync(x => x.Id == id && x.Element.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
 
             if (changeRequest is null)
             {
@@ -983,7 +1030,7 @@ namespace GestorDocumentoApp.Controllers
             var userId = GetCurrentUserId();
             var changeRequest = await _scmDocumentContext.ChangeRequests
                 .Include(x => x.Element)
-                .FirstOrDefaultAsync(x => x.Id == id && x.Element.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
 
             if (changeRequest is null)
             {
@@ -1010,7 +1057,7 @@ namespace GestorDocumentoApp.Controllers
             if (versionId.HasValue)
             {
                 var validVersion = await _scmDocumentContext.Versions
-                    .AnyAsync(x => x.Id == versionId.Value && x.ChangeRequestId == id && x.Element.Project.UserId == userId);
+                    .AnyAsync(x => x.Id == versionId.Value && x.ChangeRequestId == id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
                 if (!validVersion)
                 {
                     TrySetTempMessage("La version indicada no pertenece a la CR.", "warning");
@@ -1050,7 +1097,7 @@ namespace GestorDocumentoApp.Controllers
             var trace = await _scmDocumentContext.GitTraceLinks
                 .Include(x => x.ChangeRequest)
                 .ThenInclude(x => x.Element)
-                .FirstOrDefaultAsync(x => x.Id == traceId && x.ChangeRequestId == id && x.ChangeRequest.Element.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == traceId && x.ChangeRequestId == id && (x.ChangeRequest.Element.Project.UserId == userId || x.ChangeRequest.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
             if (trace is null)
             {
                 return NotFound();
@@ -1076,7 +1123,7 @@ namespace GestorDocumentoApp.Controllers
             if (versionId.HasValue)
             {
                 var validVersion = await _scmDocumentContext.Versions
-                    .AnyAsync(x => x.Id == versionId.Value && x.ChangeRequestId == id && x.Element.Project.UserId == userId);
+                    .AnyAsync(x => x.Id == versionId.Value && x.ChangeRequestId == id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
                 if (!validVersion)
                 {
                     TrySetTempMessage("La version indicada no pertenece a la CR.", "warning");
@@ -1111,7 +1158,7 @@ namespace GestorDocumentoApp.Controllers
             var trace = await _scmDocumentContext.GitTraceLinks
                 .Include(x => x.ChangeRequest)
                 .ThenInclude(x => x.Element)
-                .FirstOrDefaultAsync(x => x.Id == traceId && x.ChangeRequestId == id && x.ChangeRequest.Element.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == traceId && x.ChangeRequestId == id && (x.ChangeRequest.Element.Project.UserId == userId || x.ChangeRequest.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
             if (trace is null)
             {
                 return NotFound();
@@ -1136,7 +1183,7 @@ namespace GestorDocumentoApp.Controllers
             var userId = GetCurrentUserId();
             var changeRequest = await _scmDocumentContext.ChangeRequests
                 .Include(x => x.Element)
-                .FirstOrDefaultAsync(x => x.Id == id && x.Element.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
 
             if (changeRequest is null)
             {
@@ -1177,7 +1224,7 @@ namespace GestorDocumentoApp.Controllers
             var userId = GetCurrentUserId();
             var changeRequest = await _scmDocumentContext.ChangeRequests
                 .Include(x => x.Element)
-                .FirstOrDefaultAsync(x => x.Id == id && x.Element.Project.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)));
 
             if (changeRequest is null)
             {
@@ -1207,6 +1254,38 @@ namespace GestorDocumentoApp.Controllers
         private string GetCurrentUserId()
         {
             return User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        }
+
+        private async Task<string> GenerateNextChangeRequestCodeAsync()
+        {
+            var now = DateTime.Now;
+            var year = now.Year;
+            var dateHourStamp = now.ToString("ddHHmmss");
+            var prefix = $"CR-{year}-{dateHourStamp}-";
+            var regex = new Regex($@"^CR-{year}-{dateHourStamp}-(\d+)$", RegexOptions.Compiled);
+
+            var codes = await _scmDocumentContext.ChangeRequests
+                .AsNoTracking()
+                .Where(x => x.Code.StartsWith(prefix))
+                .Select(x => x.Code)
+                .ToListAsync();
+
+            var max = 0;
+            foreach (var code in codes)
+            {
+                var match = regex.Match(code);
+                if (!match.Success)
+                {
+                    continue;
+                }
+
+                if (int.TryParse(match.Groups[1].Value, out var number) && number > max)
+                {
+                    max = number;
+                }
+            }
+
+            return $"{prefix}{(max + 1):000}";
         }
 
         private static bool IsValidStatusTransition(StatusCR current, StatusCR next)
@@ -1329,7 +1408,7 @@ namespace GestorDocumentoApp.Controllers
 
             var versionMap = await _scmDocumentContext.Versions
                 .AsNoTracking()
-                .Where(x => x.ChangeRequestId == id && x.Element.Project.UserId == userId)
+                .Where(x => x.ChangeRequestId == id && (x.Element.Project.UserId == userId || x.Element.Project.Members.Any(m => m.UserId == userId && m.Active)))
                 .ToDictionaryAsync(x => x.Id, x => x);
 
             var rows = new List<TraceabilityRow>();
@@ -1434,8 +1513,14 @@ namespace GestorDocumentoApp.Controllers
 
             if (pullRequestNumber.HasValue)
             {
-                var pr = await _githubService.GetPullRequestAsync(owner, repo, pullRequestNumber.Value);
-                if (pr is null)
+                var pullRequestCheck = await _githubService.CheckPullRequestAsync(owner, repo, pullRequestNumber.Value);
+                if (pullRequestCheck.Status == GitHubCheckStatus.Unavailable)
+                {
+                    TrySetTempMessage("No se pudo validar el Pull Request por indisponibilidad temporal de GitHub. Intenta nuevamente.", "warning");
+                    return false;
+                }
+
+                if (pullRequestCheck.Status != GitHubCheckStatus.Valid)
                 {
                     TrySetTempMessage("El Pull Request indicado no existe en el repositorio.", "warning");
                     return false;

@@ -15,6 +15,7 @@
                 <label asp-form="Code" class="text-sm/6 block font-medium text-gray-900">Codigo</label>
                 <div class="mt-2">
                     <input type="text" asp-for="Code" autocomplete="given-name" class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600 sm:text-sm/6" />
+                    <p class="mt-1 text-xs text-gray-500">Sugerido automaticamente con formato CR-AAAA-DDHHMMSS-###. Puedes editarlo si lo necesitas.</p>
                 </div>
             </div>
             <span asp-validation-for="Code" class="text-red-500"></span>
