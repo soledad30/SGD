@@ -125,5 +125,50 @@ namespace GestorDocumentoApp.Controllers
             TempData["MessageType"] = "success";
             return RedirectToAction(nameof(Users));
         }
+
+        [HttpPost]
+        public async Task<IActionResult> ResetPassword(UserResetPasswordVM vm)
+        {
+            if (!ModelState.IsValid)
+            {
+                TempData["Message"] = "La nueva contraseña debe tener al menos 8 caracteres.";
+                TempData["MessageType"] = "warning";
+                return RedirectToAction(nameof(Users));
+            }
+
+            if (!string.Equals(vm.NewPassword, vm.ConfirmPassword, StringComparison.Ordinal))
+            {
+                TempData["Message"] = "La confirmación de contraseña no coincide.";
+                TempData["MessageType"] = "warning";
+                return RedirectToAction(nameof(Users));
+            }
+
+            var user = await _userManager.FindByIdAsync(vm.UserId);
+            if (user is null)
+            {
+                return NotFound();
+            }
+
+            var targetRoles = await _userManager.GetRolesAsync(user);
+            if (targetRoles.Contains("Admin", StringComparer.OrdinalIgnoreCase) && !vm.ConfirmAdminReset)
+            {
+                TempData["Message"] = "Para restablecer la contraseña de un admin, marca la confirmación de seguridad.";
+                TempData["MessageType"] = "warning";
+                return RedirectToAction(nameof(Users));
+            }
+
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var result = await _userManager.ResetPasswordAsync(user, token, vm.NewPassword);
+            if (!result.Succeeded)
+            {
+                TempData["Message"] = string.Join(" | ", result.Errors.Select(x => x.Description));
+                TempData["MessageType"] = "error";
+                return RedirectToAction(nameof(Users));
+            }
+
+            TempData["Message"] = "Contraseña restablecida correctamente.";
+            TempData["MessageType"] = "success";
+            return RedirectToAction(nameof(Users));
+        }
     }
 }

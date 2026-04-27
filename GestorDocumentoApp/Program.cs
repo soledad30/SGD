@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using QuestPDF.Infrastructure;
 using System.Diagnostics;
 using System.Security.Claims;
@@ -163,6 +164,15 @@ app.UseCors(opt =>
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+var userBrandingAssetsDirectory = @"C:\Users\PC-ADMIN\.cursor\projects\c-Users-PC-ADMIN-Documents-DESARROLLO-sw2-versionado-GestorDocumentoApp\assets";
+if (Directory.Exists(userBrandingAssetsDirectory))
+{
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(userBrandingAssetsDirectory),
+        RequestPath = "/branding"
+    });
+}
 
 app.Use(async (context, next) =>
 {

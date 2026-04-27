@@ -35,4 +35,18 @@ namespace GestorDocumentoApp.ViewModels
         [Required]
         public string Role { get; set; } = "User";
     }
+
+    public class UserResetPasswordVM
+    {
+        [Required]
+        public string UserId { get; set; } = string.Empty;
+
+        [Required, MinLength(8)]
+        public string NewPassword { get; set; } = string.Empty;
+
+        [Required, MinLength(8)]
+        public string ConfirmPassword { get; set; } = string.Empty;
+
+        public bool ConfirmAdminReset { get; set; }
+    }
 }
