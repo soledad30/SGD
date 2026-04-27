@@ -4,30 +4,32 @@
 <div class="space-y-10 p-6">
     <div>
         <h2 class="mb-4 text-2xl font-semibold text-gray-800">Indicadores Operativos</h2>
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-6">
-            <div class="rounded-lg bg-white p-4 shadow">
+        <div class="overflow-x-auto pb-2">
+            <div class="flex min-w-max flex-nowrap gap-4">
+            <div class="min-w-[220px] rounded-lg bg-white p-4 shadow">
                 <p class="text-sm text-gray-500">CR Totales</p>
                 <p class="mt-1 text-2xl font-semibold text-gray-900">@Model.Kpis.TotalCr</p>
             </div>
-            <div class="rounded-lg bg-white p-4 shadow">
+            <div class="min-w-[220px] rounded-lg bg-white p-4 shadow">
                 <p class="text-sm text-gray-500">CR Abiertos</p>
                 <p class="mt-1 text-2xl font-semibold text-amber-700">@Model.Kpis.OpenCr</p>
             </div>
-            <div class="rounded-lg bg-white p-4 shadow">
+            <div class="min-w-[220px] rounded-lg bg-white p-4 shadow">
                 <p class="text-sm text-gray-500">CR Aprobados</p>
                 <p class="mt-1 text-2xl font-semibold text-green-700">@Model.Kpis.ApprovedCr</p>
             </div>
-            <div class="rounded-lg bg-white p-4 shadow">
+            <div class="min-w-[220px] rounded-lg bg-white p-4 shadow">
                 <p class="text-sm text-gray-500">CR Baselined</p>
                 <p class="mt-1 text-2xl font-semibold text-blue-700">@Model.Kpis.BaselinedCr</p>
             </div>
-            <div class="rounded-lg bg-white p-4 shadow">
+            <div class="min-w-[220px] rounded-lg bg-white p-4 shadow">
                 <p class="text-sm text-gray-500">Edad Promedio Abiertos</p>
                 <p class="mt-1 text-2xl font-semibold text-gray-900">@Model.Kpis.AvgOpenAgeDays d</p>
             </div>
-            <div class="rounded-lg bg-white p-4 shadow">
+            <div class="min-w-[220px] rounded-lg bg-white p-4 shadow">
                 <p class="text-sm text-gray-500">Lead Time Baselined</p>
                 <p class="mt-1 text-2xl font-semibold text-gray-900">@Model.Kpis.AvgBaselinedLeadTimeDays d</p>
+            </div>
             </div>
         </div>
     </div>

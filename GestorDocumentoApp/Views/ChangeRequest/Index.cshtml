@@ -84,11 +84,14 @@
         </div>
 
         <button type="submit"
-        class="max-h-fit max-w-fit rounded-lg bg-blue-700 px-5 py-2 text-center text-sm font-medium text-white focus:ring-4 focus:ring-blue-300 focus:outline-none sm:w-auto">
+        class="inline-flex min-h-10 max-h-fit max-w-fit items-center justify-center rounded-lg px-5 py-2 text-center text-sm font-semibold text-white focus:ring-4 focus:ring-blue-300 focus:outline-none sm:w-auto"
+        style="background-color:#1d4ed8;color:#ffffff;border:1px solid #1e40af;">
             Filtrar
         </button>
 
-        <a asp-action="Index" class="max-h-fit max-w-fit rounded-lg bg-gray-500 px-5 py-2 text-center text-sm font-medium text-white focus:ring-4 focus:ring-gray-300 focus:outline-none sm:w-auto">
+        <a asp-action="Index"
+           class="inline-flex min-h-10 max-h-fit max-w-fit items-center justify-center rounded-lg px-5 py-2 text-center text-sm font-semibold text-white focus:ring-4 focus:ring-gray-300 focus:outline-none sm:w-auto"
+           style="background-color:#6b7280;color:#ffffff;border:1px solid #4b5563;">
             Limpiar
         </a>
 
@@ -103,13 +106,16 @@
            asp-route-iterationFilter="@Model.IterationFilter"
            asp-route-sortBy="@Model.SortBy"
            asp-route-sortDir="@Model.SortDir"
-           class="max-h-fit max-w-fit rounded-lg bg-emerald-600 px-5 py-2 text-center text-sm font-medium text-white focus:ring-4 focus:ring-emerald-300 focus:outline-none sm:w-auto">
+           class="inline-flex min-h-10 max-h-fit max-w-fit items-center justify-center rounded-lg px-5 py-2 text-center text-sm font-semibold text-white focus:ring-4 focus:ring-emerald-300 focus:outline-none sm:w-auto"
+           style="background-color:#059669;color:#ffffff;border:1px solid #047857;">
             Exportar CSV
         </a>
 
     </form>
 
-    <a asp-action="Create" class="max-h-fit rounded-lg bg-blue-700 px-10 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-blue-800 sm:w-auto">
+    <a asp-action="Create"
+       class="inline-flex min-h-10 max-h-fit items-center justify-center rounded-lg px-10 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-blue-800 sm:w-auto"
+       style="background-color:#1d4ed8;color:#ffffff;border:1px solid #1e40af;">
         Crear
     </a>
 </div>
