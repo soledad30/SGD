@@ -7,11 +7,11 @@
 @await Html.PartialAsync("_HeaderTitle", new HeaderTitle { Title = "Elemento de CI", Subtitle = "Listado de elementos de ci's" })
 
 <div class="my-2 flex items-end justify-between">
-    <form asp-action="Index" method="get" class="flex items-end gap-2">
-        <div>
+    <form asp-action="Index" method="get" class="flex flex-wrap items-end gap-2">
+        <div class="min-w-64">
             <label for="countries" class="mb-2 block text-sm font-medium text-gray-900">Seleccione una opcion</label>
 
-            <select asp-for="@Model.ProjectId" asp-items="Model.Projects" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-600 focus:ring-blue-600">
+            <select asp-for="@Model.ProjectId" asp-items="Model.Projects" class="block w-full min-w-0 rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-600 focus:ring-blue-600">
                 <option value="">-- Seleccione el tipo de elemento</option>
             </select>
         </div>
@@ -28,6 +28,7 @@
     </a>
 </div>
 
+<div class="overflow-x-auto">
 <table class="min-w-full">
 
     <thead class="border-b border-gray-100 bg-gray-200">
@@ -138,6 +139,7 @@
 
     </tbody>
 </table>
+</div>
 @await Html.PartialAsync("_Pagination", new
     {
         TotalCount = Model.TotalCount,
