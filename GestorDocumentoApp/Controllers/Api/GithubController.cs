@@ -20,12 +20,14 @@ namespace GestorDocumentoApp.Controllers.Api
     public class GithubController : ControllerBase
     {
         public readonly GithubService _githubService;
+        private readonly ProjectGitTokenService _projectGitTokenService;
         private readonly ScmDocumentContext _context;
         private readonly IConfiguration _configuration;
 
-        public GithubController(GithubService githubService, ScmDocumentContext context, IConfiguration configuration)
+        public GithubController(GithubService githubService, ProjectGitTokenService projectGitTokenService, ScmDocumentContext context, IConfiguration configuration)
         {
             this._githubService = githubService;
+            _projectGitTokenService = projectGitTokenService;
             _context = context;
             _configuration = configuration;
         }
@@ -79,7 +81,8 @@ namespace GestorDocumentoApp.Controllers.Api
                 return BadRequest("CommitSha or pull request data is required.");
             }
 
-            var validationMessage = await ValidateGithubTraceAsync(request.Repository, request.CommitSha, request.PullRequestNumber);
+            var tokenOverride = await _projectGitTokenService.GetTokenByChangeRequestIdAsync(request.ChangeRequestId);
+            var validationMessage = await ValidateGithubTraceAsync(request.Repository, request.CommitSha, request.PullRequestNumber, tokenOverride);
             if (validationMessage is not null)
             {
                 return BadRequest(validationMessage);
@@ -146,13 +149,14 @@ namespace GestorDocumentoApp.Controllers.Api
                 return BadRequest("CommitSha or pull request data is required.");
             }
 
-            var validationMessage = await ValidateGithubTraceAsync(request.Repository, request.CommitSha, request.PullRequestNumber);
+            var targetChangeRequestId = request.ChangeRequestId <= 0 ? trace.ChangeRequestId : request.ChangeRequestId;
+            var tokenOverride = await _projectGitTokenService.GetTokenByChangeRequestIdAsync(targetChangeRequestId);
+            var validationMessage = await ValidateGithubTraceAsync(request.Repository, request.CommitSha, request.PullRequestNumber, tokenOverride);
             if (validationMessage is not null)
             {
                 return BadRequest(validationMessage);
             }
 
-            var targetChangeRequestId = request.ChangeRequestId <= 0 ? trace.ChangeRequestId : request.ChangeRequestId;
             var changeRequest = await _context.ChangeRequests
                 .Include(x => x.Element)
                 .FirstOrDefaultAsync(x => x.Id == targetChangeRequestId &&
@@ -308,14 +312,14 @@ namespace GestorDocumentoApp.Controllers.Api
             public int? VersionId { get; set; }
         }
 
-        private async Task<string?> ValidateGithubTraceAsync(string repository, string? commitSha, int? pullRequestNumber)
+        private async Task<string?> ValidateGithubTraceAsync(string repository, string? commitSha, int? pullRequestNumber, string? tokenOverride)
         {
             if (!_githubService.TryParseRepository(repository, out var owner, out var repo))
             {
                 return "Invalid repository format. Use owner/repo.";
             }
 
-            var repositoryCheck = await _githubService.CheckRepositoryAsync(owner, repo);
+            var repositoryCheck = await _githubService.CheckRepositoryAsync(owner, repo, tokenOverride);
             if (repositoryCheck.Status == GitHubCheckStatus.Unavailable)
             {
                 return "GitHub is temporarily unavailable (rate limit or transient error). Try again later.";
@@ -328,7 +332,7 @@ namespace GestorDocumentoApp.Controllers.Api
 
             if (!string.IsNullOrWhiteSpace(commitSha))
             {
-                var commitCheck = await _githubService.CheckCommitAsync(owner, repo, commitSha.Trim());
+                var commitCheck = await _githubService.CheckCommitAsync(owner, repo, commitSha.Trim(), tokenOverride);
                 if (commitCheck.Status == GitHubCheckStatus.Unavailable)
                 {
                     return "GitHub is temporarily unavailable to validate the commit.";
@@ -342,7 +346,7 @@ namespace GestorDocumentoApp.Controllers.Api
 
             if (pullRequestNumber.HasValue)
             {
-                var pullRequestCheck = await _githubService.CheckPullRequestAsync(owner, repo, pullRequestNumber.Value);
+                var pullRequestCheck = await _githubService.CheckPullRequestAsync(owner, repo, pullRequestNumber.Value, tokenOverride);
                 if (pullRequestCheck.Status == GitHubCheckStatus.Unavailable)
                 {
                     return "GitHub is temporarily unavailable to validate the pull request.";

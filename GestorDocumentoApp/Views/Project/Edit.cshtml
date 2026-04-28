@@ -45,6 +45,23 @@
             </div>
         </div>
 
+        <div class="group relative mb-5">
+            <div class="col-span-full">
+                <label asp-for="GitHubToken" class="text-sm/6 block font-medium text-gray-900">Actualizar GitHub Token del proyecto</label>
+                <div class="mt-2">
+                    <input asp-for="GitHubToken" type="password" autocomplete="new-password" class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600 sm:text-sm/6" />
+                </div>
+                <p class="mt-1 text-xs text-gray-500">Dejalo vacio para conservar el token actual.</p>
+                @if (Model.HasGitHubToken)
+                {
+                    <div class="mt-2 flex items-center gap-2">
+                        <input asp-for="ClearGitHubToken" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600" />
+                        <label asp-for="ClearGitHubToken" class="text-sm text-gray-700">Eliminar token GitHub del proyecto</label>
+                    </div>
+                }
+            </div>
+        </div>
+
         <button type="submit"
                 class="mt-5 max-w-fit rounded-lg bg-blue-700 px-5 py-2.5 text-center text-sm font-medium text-white focus:ring-4 focus:ring-blue-300 focus:outline-none sm:w-auto">
             Actualizar

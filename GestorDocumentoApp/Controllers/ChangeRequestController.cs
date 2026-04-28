@@ -22,6 +22,7 @@ namespace GestorDocumentoApp.Controllers
         public readonly ScmDocumentContext _scmDocumentContext;
         private readonly ChangeRequestLifecycleService _changeRequestLifecycleService;
         private readonly GithubService _githubService;
+        private readonly ProjectGitTokenService _projectGitTokenService;
         private static readonly Dictionary<StatusCR, StatusCR?> _nextStatusByCurrent = new()
         {
             { StatusCR.Initiated, StatusCR.Received },
@@ -40,11 +41,13 @@ namespace GestorDocumentoApp.Controllers
         public ChangeRequestController(
             ScmDocumentContext scmDocumentContext,
             ChangeRequestLifecycleService changeRequestLifecycleService,
-            GithubService githubService)
+            GithubService githubService,
+            ProjectGitTokenService projectGitTokenService)
         {
             _scmDocumentContext = scmDocumentContext;
             _changeRequestLifecycleService = changeRequestLifecycleService;
             _githubService = githubService;
+            _projectGitTokenService = projectGitTokenService;
         }
 
         public async Task<IActionResult> Index(
@@ -1049,7 +1052,8 @@ namespace GestorDocumentoApp.Controllers
                 return RedirectToAction(nameof(Details), new { id });
             }
 
-            if (!await ValidateGithubTraceAsync(repository, commitSha, pullRequestNumber))
+            var projectToken = await _projectGitTokenService.GetTokenByChangeRequestIdAsync(id);
+            if (!await ValidateGithubTraceAsync(repository, commitSha, pullRequestNumber, projectToken))
             {
                 return RedirectToAction(nameof(Details), new { id });
             }
@@ -1115,7 +1119,8 @@ namespace GestorDocumentoApp.Controllers
                 return RedirectToAction(nameof(Details), new { id });
             }
 
-            if (!await ValidateGithubTraceAsync(repository, commitSha, pullRequestNumber))
+            var projectToken = await _projectGitTokenService.GetTokenByChangeRequestIdAsync(id);
+            if (!await ValidateGithubTraceAsync(repository, commitSha, pullRequestNumber, projectToken))
             {
                 return RedirectToAction(nameof(Details), new { id });
             }
@@ -1474,7 +1479,7 @@ namespace GestorDocumentoApp.Controllers
             TempData["MessageType"] = type;
         }
 
-        private async Task<bool> ValidateGithubTraceAsync(string repository, string? commitSha, int? pullRequestNumber)
+        private async Task<bool> ValidateGithubTraceAsync(string repository, string? commitSha, int? pullRequestNumber, string? tokenOverride)
         {
             if (!_githubService.TryParseRepository(repository, out var owner, out var repo))
             {
@@ -1482,7 +1487,7 @@ namespace GestorDocumentoApp.Controllers
                 return false;
             }
 
-            var repositoryCheck = await _githubService.CheckRepositoryAsync(owner, repo);
+            var repositoryCheck = await _githubService.CheckRepositoryAsync(owner, repo, tokenOverride);
             if (repositoryCheck.Status == GitHubCheckStatus.Unavailable)
             {
                 TrySetTempMessage("GitHub no esta disponible temporalmente (rate limit o error externo). Intenta nuevamente en unos minutos.", "warning");
@@ -1497,7 +1502,7 @@ namespace GestorDocumentoApp.Controllers
 
             if (!string.IsNullOrWhiteSpace(commitSha))
             {
-                var commitCheck = await _githubService.CheckCommitAsync(owner, repo, commitSha.Trim());
+                var commitCheck = await _githubService.CheckCommitAsync(owner, repo, commitSha.Trim(), tokenOverride);
                 if (commitCheck.Status == GitHubCheckStatus.Unavailable)
                 {
                     TrySetTempMessage("No se pudo validar el commit por indisponibilidad temporal de GitHub. Intenta nuevamente.", "warning");
@@ -1513,7 +1518,7 @@ namespace GestorDocumentoApp.Controllers
 
             if (pullRequestNumber.HasValue)
             {
-                var pullRequestCheck = await _githubService.CheckPullRequestAsync(owner, repo, pullRequestNumber.Value);
+                var pullRequestCheck = await _githubService.CheckPullRequestAsync(owner, repo, pullRequestNumber.Value, tokenOverride);
                 if (pullRequestCheck.Status == GitHubCheckStatus.Unavailable)
                 {
                     TrySetTempMessage("No se pudo validar el Pull Request por indisponibilidad temporal de GitHub. Intenta nuevamente.", "warning");
@@ -1568,6 +1573,7 @@ namespace GestorDocumentoApp.Controllers
 
         private async Task<(bool IsValid, string Message)> ValidateBaselineEvidenceAsync(int changeRequestId)
         {
+            var tokenOverride = await _projectGitTokenService.GetTokenByChangeRequestIdAsync(changeRequestId);
             var links = await _scmDocumentContext.GitTraceLinks
                 .AsNoTracking()
                 .Where(x => x.ChangeRequestId == changeRequestId)
@@ -1591,7 +1597,7 @@ namespace GestorDocumentoApp.Controllers
 
                 if (!string.IsNullOrWhiteSpace(link.CommitSha))
                 {
-                    var commitCheck = await _githubService.CheckCommitAsync(owner, repo, link.CommitSha.Trim());
+                    var commitCheck = await _githubService.CheckCommitAsync(owner, repo, link.CommitSha.Trim(), tokenOverride);
                     if (commitCheck.Status == GitHubCheckStatus.Valid)
                     {
                         return (true, string.Empty);
@@ -1600,7 +1606,7 @@ namespace GestorDocumentoApp.Controllers
 
                 if (link.PullRequestNumber.HasValue)
                 {
-                    var pullRequestCheck = await _githubService.CheckPullRequestMergedAsync(owner, repo, link.PullRequestNumber.Value);
+                    var pullRequestCheck = await _githubService.CheckPullRequestMergedAsync(owner, repo, link.PullRequestNumber.Value, tokenOverride);
                     if (pullRequestCheck.Status == GitHubCheckStatus.Valid)
                     {
                         return (true, string.Empty);
