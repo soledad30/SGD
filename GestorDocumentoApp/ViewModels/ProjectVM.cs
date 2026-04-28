@@ -17,6 +17,11 @@ namespace GestorDocumentoApp.ViewModels
         [Required(ErrorMessage = "Fecha de creacion es requerido.")]
         public DateTime CreationDate { get; set; } = DateTime.Now;
 
+        [DataType(DataType.Password)]
+        public string? GitHubToken { get; set; }
+        public bool ClearGitHubToken { get; set; }
+        public bool HasGitHubToken { get; set; }
+
     }
 
     public class ProjectElementVM

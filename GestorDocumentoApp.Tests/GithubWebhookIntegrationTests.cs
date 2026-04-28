@@ -6,6 +6,7 @@ using GestorDocumentoApp.Models;
 using GestorDocumentoApp.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
@@ -82,7 +83,10 @@ public class GithubWebhookIntegrationTests
             configuration,
             new MemoryCache(new MemoryCacheOptions()),
             NullLogger<GithubService>.Instance);
-        return new GithubController(githubService, context, configuration);
+        var projectGitTokenService = new ProjectGitTokenService(
+            DataProtectionProvider.Create("GestorDocumentoApp.Tests"),
+            context);
+        return new GithubController(githubService, projectGitTokenService, context, configuration);
     }
 
     private static ScmDocumentContext CreateContext(string dbName)

@@ -18,28 +18,22 @@ namespace GestorDocumentoApp.Services
 
     public class GithubService
     {
-        private readonly GitHubClient _client;
+        private readonly string? _defaultToken;
         private readonly IMemoryCache _memoryCache;
         private readonly ILogger<GithubService> _logger;
         private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(3);
 
         public GithubService(IConfiguration configuration, IMemoryCache memoryCache, ILogger<GithubService> logger)
         {
-            var token = configuration["GitHub:Token"];
+            _defaultToken = configuration["GitHub:Token"];
             _memoryCache = memoryCache;
             _logger = logger;
-
-            _client = new GitHubClient(new ProductHeaderValue("ScmDocumentApp"));
-            if (!string.IsNullOrWhiteSpace(token))
-            {
-                _client.Credentials = new Credentials(token);
-            }
-
         }
 
-        public async Task<IReadOnlyList<Repository>> GetReposAsync()
+        public async Task<IReadOnlyList<Repository>> GetReposAsync(string? tokenOverride = null)
         {
-            return await _client.Repository.GetAllForCurrent(new RepositoryRequest
+            var client = BuildClient(tokenOverride);
+            return await client.Repository.GetAllForCurrent(new RepositoryRequest
             {
                 Type=RepositoryType.Public,
                 Sort=RepositorySort.Created,
@@ -164,23 +158,24 @@ namespace GestorDocumentoApp.Services
             return !string.IsNullOrWhiteSpace(commitSha);
         }
 
-        public virtual async Task<bool> RepositoryExistsAsync(string owner, string name)
+        public virtual async Task<bool> RepositoryExistsAsync(string owner, string name, string? tokenOverride = null)
         {
-            var result = await CheckRepositoryAsync(owner, name);
+            var result = await CheckRepositoryAsync(owner, name, tokenOverride);
             return result.Status == GitHubCheckStatus.Valid;
         }
 
-        public virtual async Task<bool> CommitExistsAsync(string owner, string name, string sha)
+        public virtual async Task<bool> CommitExistsAsync(string owner, string name, string sha, string? tokenOverride = null)
         {
-            var result = await CheckCommitAsync(owner, name, sha);
+            var result = await CheckCommitAsync(owner, name, sha, tokenOverride);
             return result.Status == GitHubCheckStatus.Valid;
         }
 
-        public virtual async Task<PullRequest?> GetPullRequestAsync(string owner, string name, int number)
+        public virtual async Task<PullRequest?> GetPullRequestAsync(string owner, string name, int number, string? tokenOverride = null)
         {
+            var client = BuildClient(tokenOverride);
             try
             {
-                return await _client.PullRequest.Get(owner, name, number);
+                return await client.PullRequest.Get(owner, name, number);
             }
             catch (NotFoundException)
             {
@@ -192,9 +187,10 @@ namespace GestorDocumentoApp.Services
             }
         }
 
-        public virtual async Task<GitHubCheckResult> CheckPullRequestAsync(string owner, string name, int number)
+        public virtual async Task<GitHubCheckResult> CheckPullRequestAsync(string owner, string name, int number, string? tokenOverride = null)
         {
-            var cacheKey = $"gh:pr:{owner}/{name}:{number}".ToLowerInvariant();
+            var client = BuildClient(tokenOverride);
+            var cacheKey = $"gh:pr:{BuildTokenCacheKey(tokenOverride)}:{owner}/{name}:{number}".ToLowerInvariant();
             if (_memoryCache.TryGetValue(cacheKey, out GitHubCheckResult? cached) && cached is not null)
             {
                 return cached;
@@ -203,7 +199,7 @@ namespace GestorDocumentoApp.Services
             GitHubCheckResult result;
             try
             {
-                _ = await _client.PullRequest.Get(owner, name, number);
+                _ = await client.PullRequest.Get(owner, name, number);
                 result = new GitHubCheckResult { Status = GitHubCheckStatus.Valid };
             }
             catch (NotFoundException)
@@ -230,15 +226,16 @@ namespace GestorDocumentoApp.Services
             return result;
         }
 
-        public virtual async Task<bool> IsPullRequestMergedAsync(string owner, string name, int number)
+        public virtual async Task<bool> IsPullRequestMergedAsync(string owner, string name, int number, string? tokenOverride = null)
         {
-            var result = await CheckPullRequestMergedAsync(owner, name, number);
+            var result = await CheckPullRequestMergedAsync(owner, name, number, tokenOverride);
             return result.Status == GitHubCheckStatus.Valid;
         }
 
-        public virtual async Task<GitHubCheckResult> CheckRepositoryAsync(string owner, string name)
+        public virtual async Task<GitHubCheckResult> CheckRepositoryAsync(string owner, string name, string? tokenOverride = null)
         {
-            var cacheKey = $"gh:repo:{owner}/{name}".ToLowerInvariant();
+            var client = BuildClient(tokenOverride);
+            var cacheKey = $"gh:repo:{BuildTokenCacheKey(tokenOverride)}:{owner}/{name}".ToLowerInvariant();
             if (_memoryCache.TryGetValue(cacheKey, out GitHubCheckResult? cached) && cached is not null)
             {
                 return cached;
@@ -247,7 +244,7 @@ namespace GestorDocumentoApp.Services
             GitHubCheckResult result;
             try
             {
-                _ = await _client.Repository.Get(owner, name);
+                _ = await client.Repository.Get(owner, name);
                 result = new GitHubCheckResult { Status = GitHubCheckStatus.Valid };
             }
             catch (NotFoundException)
@@ -274,10 +271,11 @@ namespace GestorDocumentoApp.Services
             return result;
         }
 
-        public virtual async Task<GitHubCheckResult> CheckCommitAsync(string owner, string name, string sha)
+        public virtual async Task<GitHubCheckResult> CheckCommitAsync(string owner, string name, string sha, string? tokenOverride = null)
         {
+            var client = BuildClient(tokenOverride);
             var normalizedSha = sha.Trim();
-            var cacheKey = $"gh:commit:{owner}/{name}:{normalizedSha}".ToLowerInvariant();
+            var cacheKey = $"gh:commit:{BuildTokenCacheKey(tokenOverride)}:{owner}/{name}:{normalizedSha}".ToLowerInvariant();
             if (_memoryCache.TryGetValue(cacheKey, out GitHubCheckResult? cached) && cached is not null)
             {
                 return cached;
@@ -286,7 +284,7 @@ namespace GestorDocumentoApp.Services
             GitHubCheckResult result;
             try
             {
-                _ = await _client.Repository.Commit.Get(owner, name, normalizedSha);
+                _ = await client.Repository.Commit.Get(owner, name, normalizedSha);
                 result = new GitHubCheckResult { Status = GitHubCheckStatus.Valid };
             }
             catch (NotFoundException)
@@ -318,9 +316,10 @@ namespace GestorDocumentoApp.Services
             return result;
         }
 
-        public virtual async Task<GitHubCheckResult> CheckPullRequestMergedAsync(string owner, string name, int number)
+        public virtual async Task<GitHubCheckResult> CheckPullRequestMergedAsync(string owner, string name, int number, string? tokenOverride = null)
         {
-            var cacheKey = $"gh:pr-merged:{owner}/{name}:{number}".ToLowerInvariant();
+            var client = BuildClient(tokenOverride);
+            var cacheKey = $"gh:pr-merged:{BuildTokenCacheKey(tokenOverride)}:{owner}/{name}:{number}".ToLowerInvariant();
             if (_memoryCache.TryGetValue(cacheKey, out GitHubCheckResult? cached) && cached is not null)
             {
                 return cached;
@@ -329,7 +328,7 @@ namespace GestorDocumentoApp.Services
             GitHubCheckResult result;
             try
             {
-                var pr = await _client.PullRequest.Get(owner, name, number);
+                var pr = await client.PullRequest.Get(owner, name, number);
                 result = pr.Merged
                     ? new GitHubCheckResult { Status = GitHubCheckStatus.Valid }
                     : new GitHubCheckResult { Status = GitHubCheckStatus.NotFound, Message = "Pull request is not merged yet." };
@@ -367,6 +366,28 @@ namespace GestorDocumentoApp.Services
             }
 
             _memoryCache.Set(cacheKey, result, CacheTtl);
+        }
+
+        private GitHubClient BuildClient(string? tokenOverride)
+        {
+            var token = string.IsNullOrWhiteSpace(tokenOverride) ? _defaultToken : tokenOverride.Trim();
+            var client = new GitHubClient(new ProductHeaderValue("ScmDocumentApp"));
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                client.Credentials = new Credentials(token);
+            }
+
+            return client;
+        }
+
+        private static string BuildTokenCacheKey(string? tokenOverride)
+        {
+            if (string.IsNullOrWhiteSpace(tokenOverride))
+            {
+                return "default-token";
+            }
+
+            return $"custom-{tokenOverride.Trim().Length}";
         }
     }
 }

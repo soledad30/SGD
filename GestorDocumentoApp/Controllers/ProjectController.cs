@@ -15,17 +15,20 @@ namespace GestorDocumentoApp.Controllers
     {
         private readonly ScmDocumentContext _scmDocumentContext;
         private readonly ProjectAccessService _projectAccessService;
+        private readonly ProjectGitTokenService _projectGitTokenService;
         private readonly UserManager<IdentityUser> _userManager;
         private readonly ILogger<ElementTypeController> _logger;
 
         public ProjectController(
             ScmDocumentContext scmDocumentContext,
             ProjectAccessService projectAccessService,
+            ProjectGitTokenService projectGitTokenService,
             UserManager<IdentityUser> userManager,
             ILogger<ElementTypeController> logger)
         {
             _scmDocumentContext = scmDocumentContext;
             _projectAccessService = projectAccessService;
+            _projectGitTokenService = projectGitTokenService;
             _userManager = userManager;
             _logger = logger;
         }
@@ -61,6 +64,7 @@ namespace GestorDocumentoApp.Controllers
                     Name = projectVM.Name,
                     Description = projectVM.Description,
                     CreationDate = DateTime.SpecifyKind(projectVM.CreationDate, DateTimeKind.Utc),
+                    GitHubTokenCipherText = _projectGitTokenService.Protect(projectVM.GitHubToken),
                     UserId = GetCurrentUserId()
                 };
                 _scmDocumentContext.Add(project);
@@ -110,7 +114,8 @@ namespace GestorDocumentoApp.Controllers
                 Id = project.Id,
                 Name = project.Name,
                 Description = project.Description,
-                CreationDate = project.CreationDate
+                CreationDate = project.CreationDate,
+                HasGitHubToken = !string.IsNullOrWhiteSpace(project.GitHubTokenCipherText)
             });
 
         }
@@ -140,6 +145,14 @@ namespace GestorDocumentoApp.Controllers
                 project.Name = projectVM.Name;
                 project.Description = projectVM.Description;
                 project.CreationDate = DateTime.SpecifyKind(projectVM.CreationDate, DateTimeKind.Utc);
+                if (projectVM.ClearGitHubToken)
+                {
+                    project.GitHubTokenCipherText = null;
+                }
+                else if (!string.IsNullOrWhiteSpace(projectVM.GitHubToken))
+                {
+                    project.GitHubTokenCipherText = _projectGitTokenService.Protect(projectVM.GitHubToken);
+                }
 
                 await _scmDocumentContext.SaveChangesAsync();
 

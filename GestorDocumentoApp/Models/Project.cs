@@ -8,6 +8,7 @@ namespace GestorDocumentoApp.Models
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public DateTime CreationDate { get; set; }
+        public string? GitHubTokenCipherText { get; set; }
 
         [Required]
         public string UserId { get; set; } = string.Empty;
